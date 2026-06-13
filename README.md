@@ -18,8 +18,10 @@ registry. Think "GitHub for Claude setups" — pull a skill, adopt someone's who
   Mermaid ER diagrams, RLS policies, and the decision trail (D1–D29).
 - **[docs/user-stories.md](./docs/user-stories.md)** — the 7 MVP user stories (sync, publish, pull,
   adopt, update), each with flow, edge cases, and the explicit MVP simplifications.
-- **[design/](./design)** — the design-pipeline trail: PRD → architecture → tech-lead review →
-  implementation plan → review.
+
+> **Doc philosophy:** this repo holds **durable** docs (the system as it is — TDD, schema, stories).
+> Per-feature design scaffolding (PRD, architecture review, tech-lead review, etc.) is *ephemeral* and
+> stays in a local workshop, not the repo — its durable conclusions are folded into the docs above.
 
 ## Core ideas
 

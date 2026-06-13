@@ -250,5 +250,7 @@ The "design-it-twice" comparisons. ✅ = chosen.
 
 - **`docs/schema.md`** — full DDL (local + registry), Mermaid ER diagrams, RLS policies, D1–D29.
 - **`docs/user-stories.md`** — the 7 MVP user stories with flows, edge cases, MVP cuts.
-- **`design/`** — the design-pipeline trail: PRD → architecture → tech-lead review → implementation
-  plan → review.
+
+*(The per-feature design-pipeline trail — PRD, architecture review, tech-lead review, implementation
+plan, code review — is ephemeral scaffolding kept in a local workshop, not committed here. Its durable
+conclusions live in this TDD's Decisions Register and Trade-off Matrices.)*
