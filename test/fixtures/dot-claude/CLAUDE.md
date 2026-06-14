@@ -1,3 +1,0 @@
-# Global instructions
-
-Be concise.
