@@ -1115,6 +1115,12 @@ button.chip:hover:not(.is-active) {
   padding: 18px 22px;
   background: var(--surface);
 }
+.merge-right-head {
+  margin-bottom: 12px;
+}
+.md-pane {
+  font-size: 13px;
+}
 .merge-left-head {
   display: flex;
   align-items: center;
