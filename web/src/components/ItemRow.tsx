@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Item } from "../types";
 import { preview } from "../lib/grouping";
 import { projectName } from "../lib/projects";
+import { adoptRaw } from "../dataSource";
 import { usePublish } from "../hooks/publishContext";
 import { KindDot } from "./KindDot";
 import { PublishButton } from "./PublishButton";
@@ -17,6 +18,19 @@ interface ItemRowProps {
 export function ItemRow({ item, showProject }: ItemRowProps) {
   const [open, setOpen] = useState(false);
   const publish = usePublish();
+  const isProject = item.scope !== "Global"; // project-scoped items can be promoted to global
+  const [promo, setPromo] = useState<"" | "working" | "done" | "exists" | "na" | "error">("");
+
+  const promote = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPromo("working");
+    try {
+      const o = await adoptRaw(item.kind, item.name, item.body, false, null);
+      setPromo(o === "Created" || o === "Overwritten" ? "done" : o === "Exists" ? "exists" : "na");
+    } catch {
+      setPromo("error");
+    }
+  };
 
   return (
     <div className={`card item-card${open ? " open" : ""}`}>
@@ -36,6 +50,20 @@ export function ItemRow({ item, showProject }: ItemRowProps) {
         {!open && <span className="item-preview">{preview(item.body)}</span>}
         <span className="item-meta">
           {showProject && <span className="tag">{projectName(item.scope)}</span>}
+          {isProject &&
+            (promo === "done" ? (
+              <span className="pub-tag published">→ Global ✓</span>
+            ) : promo === "exists" ? (
+              <span className="pub-tag busy">in Global</span>
+            ) : promo === "working" ? (
+              <span className="pub-tag busy">…</span>
+            ) : promo === "na" ? (
+              <span className="pub-tag busy">n/a</span>
+            ) : (
+              <button className="pub-btn ghost" title="Copy to your global ~/.claude" onClick={promote}>
+                Promote
+              </button>
+            ))}
           {publish && <PublishButton item={item} api={publish} />}
           <span className="chevron">▶</span>
         </span>
