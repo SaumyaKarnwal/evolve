@@ -8,6 +8,8 @@ export interface PublishApi {
   publish: (item: Item) => void;
   unpublish: (item: Item) => void;
   isBusy: (item: Item) => boolean;
+  /** If this local item was adopted and its source shipped a newer revision, that revision; else null. */
+  updateFor: (item: Item) => number | null;
 }
 
 export const PublishContext = createContext<PublishApi | null>(null);

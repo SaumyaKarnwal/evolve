@@ -50,6 +50,11 @@ export function ItemRow({ item, showProject }: ItemRowProps) {
         {!open && <span className="item-preview">{preview(item.body)}</span>}
         <span className="item-meta">
           {showProject && <span className="tag">{projectName(item.scope)}</span>}
+          {publish?.updateFor(item) != null && (
+            <span className="tag flag" title="The source published a newer version — update it from Discover">
+              update v{publish.updateFor(item)}
+            </span>
+          )}
           {isProject &&
             (promo === "done" ? (
               <span className="pub-tag published">→ Global ✓</span>

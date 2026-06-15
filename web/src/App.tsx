@@ -70,6 +70,17 @@ export default function App() {
     [otherProjects],
   );
 
+  // adopted local items (by kind+name) + latest revision available per source — for "update available"
+  const adoptedByName = useMemo(() => {
+    const m = new Map<string, { source_id: string; revision: number }>();
+    for (const a of provenance.bySource.values()) m.set(`${a.kind.toLowerCase()} ${a.name}`, a);
+    return m;
+  }, [provenance.bySource]);
+  const latestBySource = useMemo(
+    () => new Map((discover.items ?? []).map((i) => [i.id, i.latest_revision])),
+    [discover.items],
+  );
+
   const publishApi: PublishApi = useMemo(
     () => ({
       signedIn: !!auth.user,
@@ -77,8 +88,14 @@ export default function App() {
       publish: pubs.publish,
       unpublish: pubs.unpublish,
       isBusy: pubs.isBusy,
+      updateFor: (item) => {
+        const a = adoptedByName.get(`${item.kind.toLowerCase()} ${item.name}`);
+        if (!a) return null;
+        const latest = latestBySource.get(a.source_id);
+        return latest !== undefined && latest > a.revision ? latest : null;
+      },
     }),
-    [auth.user, pubs],
+    [auth.user, pubs, adoptedByName, latestBySource],
   );
 
   // count adopted items whose source has shipped a newer revision (the update badge)
