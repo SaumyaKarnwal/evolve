@@ -22,7 +22,14 @@ export function ItemRow({ item, showProject }: ItemRowProps) {
     <div className={`card item-card${open ? " open" : ""}`}>
       <div className="item-row" onClick={() => setOpen((o) => !o)}>
         <KindDot kind={item.kind} />
-        <span className="item-name">{item.name}</span>
+        <span
+          className={
+            "item-name" +
+            (item.kind === "Skill" || item.kind === "Command" || item.kind === "Agent" ? " mono" : "")
+          }
+        >
+          {item.name}
+        </span>
         {item.source_anchor && item.source_anchor !== item.name && (
           <span className="item-anchor">· {item.source_anchor}</span>
         )}

@@ -297,6 +297,44 @@ button.chip:hover:not(.is-active) {
   color: var(--muted);
 }
 
+/* visibility pill (the mock's Public/Private) */
+.vis {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 11px;
+  border-radius: 99px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.14s, color 0.14s;
+}
+.vis-private {
+  background: var(--paper-2);
+  color: var(--muted);
+}
+.vis-private:hover {
+  background: var(--sage-tint);
+  color: var(--sage-700);
+}
+.vis-public {
+  background: var(--sage-tint);
+  color: var(--sage-700);
+}
+.vis-public:hover {
+  background: var(--paper-2);
+  color: var(--muted);
+}
+.vis-update {
+  background: var(--coral-tint);
+  color: var(--coral-700);
+}
+.vis-busy {
+  background: var(--paper-2);
+  color: var(--muted);
+}
+
 /* kind dots + their accent families */
 .kind-dot {
   width: 8px;

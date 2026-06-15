@@ -249,7 +249,6 @@ function AdoptControl({
 }) {
   const [status, setStatus] = useState<AdoptStatus>("idle");
   const [msg, setMsg] = useState("");
-  const isRule = toKind(item.kind) === "Rule";
 
   const run = async (overwrite: boolean) => {
     setStatus("working");
@@ -259,13 +258,9 @@ function AdoptControl({
         setStatus("done");
         recordPull(item.id).catch(() => {});
       } else if (outcome === "Exists") {
-        // a rule that already exists → resolve via the merge view, not a blunt overwrite
-        if (isRule) {
-          setStatus("idle");
-          onMergeNeeded();
-        } else {
-          setStatus("exists");
-        }
+        // already present → always resolve via the diff/merge view, never a blunt overwrite
+        setStatus("idle");
+        onMergeNeeded();
       } else {
         setStatus("unsupported");
       }

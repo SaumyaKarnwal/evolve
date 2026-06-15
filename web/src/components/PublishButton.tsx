@@ -1,50 +1,43 @@
 import type { Item } from "../types";
 import type { PublishApi } from "../hooks/publishContext";
 
-/** The per-item publish control: Publish / Published·vN / Publish update (drift). Hidden when signed out. */
+/** Visibility pill (the mock's Public/Private): reflects + toggles publish state for an item. */
 export function PublishButton({ item, api }: { item: Item; api: PublishApi }) {
   if (!api.signedIn) return null;
 
   const stop = (fn: () => void) => (e: React.MouseEvent) => {
-    e.stopPropagation(); // don't toggle the card's expand when clicking the control
+    e.stopPropagation();
     fn();
   };
 
-  if (api.isBusy(item)) return <span className="pub-tag busy">working…</span>;
+  if (api.isBusy(item)) return <span className="vis vis-busy">…</span>;
 
   const state = api.stateOf(item);
   if (state.status === "unpublished") {
     return (
-      <button className="pub-btn" onClick={stop(() => api.publish(item))}>
-        Publish
+      <button className="vis vis-private" title="Private — click to publish" onClick={stop(() => api.publish(item))}>
+        Private
       </button>
     );
   }
   if (state.status === "drifted") {
-    // published at vN, but local content has changed since — offer to publish the new version
     return (
-      <>
-        <span className="tag" title="Currently published version">
-          v{state.revision}
-        </span>
-        <button
-          className="pub-btn drift"
-          title="Your local copy changed — publish it as a new version"
-          onClick={stop(() => api.publish(item))}
-        >
-          Publish update
-        </button>
-      </>
+      <button
+        className="vis vis-update"
+        title="Public, but your local copy changed — click to publish the update"
+        onClick={stop(() => api.publish(item))}
+      >
+        Update · v{state.revision}
+      </button>
     );
   }
-  // published and in sync
   return (
     <button
-      className="pub-tag published"
-      title="Published — click to unpublish"
+      className="vis vis-public"
+      title="Public — click to unpublish (make private)"
       onClick={stop(() => api.unpublish(item))}
     >
-      Published · v{state.revision}
+      Public · v{state.revision}
     </button>
   );
 }
