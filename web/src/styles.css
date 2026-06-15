@@ -437,6 +437,20 @@ button.chip:hover:not(.is-active) {
   display: inline-flex;
   color: inherit;
 }
+.nav-badge {
+  margin-left: auto;
+  background: var(--coral);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 99px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .sidenav-foot {
   border-top: 1px solid var(--line);
   padding-top: 12px;

@@ -36,7 +36,7 @@ export default function App() {
   const provenance = useProvenance(!!auth.user);
 
   const [tab, setTab] = useState<Tab>("global");
-  const discover = useDiscover((tab === "discover" || tab === "people") && !!auth.user);
+  const discover = useDiscover(!!auth.user); // feed loaded whenever signed in (drives update badge)
   const [projectKey, setProjectKey] = useState<string | null>(null);
   const [kind, setKind] = useState<Kind | null>(null);
   const [query, setQuery] = useState("");
@@ -81,6 +81,23 @@ export default function App() {
     [auth.user, pubs],
   );
 
+  // count adopted items whose source has shipped a newer revision (the update badge)
+  const updateCount = useMemo(() => {
+    if (!discover.items) return 0;
+    const latest = new Map(discover.items.map((i) => [i.id, i.latest_revision]));
+    let n = 0;
+    for (const [sid, a] of provenance.bySource) {
+      const rev = latest.get(sid);
+      if (rev !== undefined && rev > a.revision) n++;
+    }
+    return n;
+  }, [discover.items, provenance.bySource]);
+
+  const navItems = useMemo(
+    () => NAV.map((n) => (n.id === "discover" ? { ...n, badge: updateCount } : n)),
+    [updateCount],
+  );
+
   const goTab = (t: Tab) => {
     setTab(t);
     setProjectKey(null);
@@ -118,7 +135,7 @@ export default function App() {
     <PublishContext.Provider value={publishApi}>
       <div className="app">
         <SideNav
-          items={NAV}
+          items={navItems}
           active={tab}
           onChange={goTab}
           user={auth.user}

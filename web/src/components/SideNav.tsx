@@ -5,6 +5,7 @@ interface NavItem<T extends string> {
   id: T;
   label: string;
   icon: ReactNode;
+  badge?: number;
 }
 
 interface SideNavProps<T extends string> {
@@ -39,6 +40,7 @@ export function SideNav<T extends string>({
           >
             <span className="nav-icon">{it.icon}</span>
             {it.label}
+            {it.badge ? <span className="nav-badge">{it.badge}</span> : null}
           </button>
         ))}
       </div>
