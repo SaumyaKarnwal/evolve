@@ -6,6 +6,7 @@ import { buildMerge } from "../lib/diff";
 import { KindTile } from "./KindTile";
 import { Filters } from "./Filters";
 import { MergeView } from "./MergeView";
+import { Markdown } from "./Markdown";
 
 /** Registry kinds are lowercase ("skill"); UI types are capitalized ("Skill"). */
 const toKind = (k: string): Kind => (k.charAt(0).toUpperCase() + k.slice(1)) as Kind;
@@ -228,7 +229,7 @@ function SkillDetail({
           </div>
         </div>
         <div className="modal-body">
-          <pre>{item.body}</pre>
+          <Markdown text={item.body} />
         </div>
       </div>
     </div>

@@ -5,6 +5,7 @@ import { projectName } from "../lib/projects";
 import { usePublish } from "../hooks/publishContext";
 import { KindDot } from "./KindDot";
 import { PublishButton } from "./PublishButton";
+import { Markdown } from "./Markdown";
 
 interface ItemRowProps {
   item: Item;
@@ -34,7 +35,7 @@ export function ItemRow({ item, showProject }: ItemRowProps) {
       </div>
       {open && (
         <div className="item-body">
-          <pre>{item.body}</pre>
+          <Markdown text={item.body} />
           <div className="item-foot">
             <span className="item-hash">sha256 · {item.content_hash.slice(0, 16)}</span>
           </div>
