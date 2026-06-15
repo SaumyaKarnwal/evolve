@@ -9,3 +9,9 @@ pub mod render;
 
 // Convenience re-export so callers can write `evolve::scan(...)`.
 pub use claude::scan;
+
+/// The default Claude config root: `~/.claude` (None if the home directory can't be found).
+/// Shared by the CLI and the desktop app so neither hardcodes a path.
+pub fn default_claude_root() -> Option<std::path::PathBuf> {
+    dirs::home_dir().map(|home| home.join(".claude"))
+}

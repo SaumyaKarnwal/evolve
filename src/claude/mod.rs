@@ -3,6 +3,7 @@
 mod discovery;
 mod parsers;
 
+use std::fs;
 use std::path::Path;
 
 use crate::model::{Kind, ScannedItem, Scope};
@@ -48,20 +49,35 @@ pub fn scan(claude_root: &Path) -> Vec<ScannedItem> {
         if let Some(real) = &project.real_path {
             let real = Path::new(real);
             items.extend(scan_claude_md(&real.join("CLAUDE.md"), &scope));
+
+            // A project rooted at the home dir resolves its `.claude` to ~/.claude itself, so its
+            // skills/commands/agents ARE the global ones (already scanned above). Skip them to avoid
+            // double-counting; the project's own CLAUDE.md and memory stay (they're distinct files).
             let dot_claude = real.join(".claude");
-            items.extend(scan_skill_dir(&dot_claude.join("skills"), &scope));
-            items.extend(scan_md_files(
-                &dot_claude.join("commands"),
-                Kind::Command,
-                &scope,
-            ));
-            items.extend(scan_md_files(
-                &dot_claude.join("agents"),
-                Kind::Agent,
-                &scope,
-            ));
+            if !same_dir(&dot_claude, claude_root) {
+                items.extend(scan_skill_dir(&dot_claude.join("skills"), &scope));
+                items.extend(scan_md_files(
+                    &dot_claude.join("commands"),
+                    Kind::Command,
+                    &scope,
+                ));
+                items.extend(scan_md_files(
+                    &dot_claude.join("agents"),
+                    Kind::Agent,
+                    &scope,
+                ));
+            }
         }
     }
 
     items
+}
+
+/// Whether two paths point at the same directory, resolving symlinks/`..` when possible and falling
+/// back to a literal comparison if either can't be canonicalized (e.g. doesn't exist).
+fn same_dir(a: &Path, b: &Path) -> bool {
+    match (fs::canonicalize(a), fs::canonicalize(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => a == b,
+    }
 }

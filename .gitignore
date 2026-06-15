@@ -1,4 +1,11 @@
 /target
+/web/node_modules
+/web/dist
+/mock.html
+# Supabase URL + anon key live here, never committed (anon key is publishable but kept out of git anyway)
+evolve.config.json
+.env
+.env.local
 Cargo.lock.bak
 .DS_Store
 *.db

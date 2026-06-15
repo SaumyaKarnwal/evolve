@@ -1,8 +1,10 @@
 //! Core data types — what a scanned item *is*.
 
+use serde::Serialize;
+
 /// What kind of config artifact an item is — exactly one of these (an enum, not a free string,
 /// so typos can't compile and a `match` on it is exhaustive).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Kind {
     Skill,
     Rule,
@@ -25,7 +27,7 @@ impl Kind {
 }
 
 /// Where an item lives: globally under `~/.claude`, or scoped to one Claude project.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub enum Scope {
     Global,
     /// A Claude project. `encoded` is the `~/.claude/projects/<dir>` name; `real_path` is the
@@ -37,7 +39,7 @@ pub enum Scope {
 }
 
 /// The uniform item (D2): every kind is the same shape, with an opaque `body`.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ScannedItem {
     pub kind: Kind,
     pub name: String,
