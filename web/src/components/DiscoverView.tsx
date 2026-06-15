@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { type Item, type Kind, KIND_META, type PublicItem } from "../types";
-import { adoptItem, recordPull, type InstallOutcome } from "../dataSource";
+import { type Adopted, type Item, type Kind, KIND_META, type PublicItem } from "../types";
+import { adoptItem, noteAdopted, recordPull, type InstallOutcome } from "../dataSource";
 import { preview } from "../lib/grouping";
 import { buildMerge } from "../lib/diff";
 import { KindTile } from "./KindTile";
@@ -28,6 +28,10 @@ interface DiscoverViewProps {
   localItems: Item[];
   /** Publication ids the signed-in user owns — shown as "Yours", not adoptable. */
   mineIds: Set<string>;
+  /** What you've adopted, by source id — drives "Adopted" / "Update available". */
+  provenance: Map<string, Adopted>;
+  /** Refresh provenance after an adopt. */
+  onAdopted: () => void;
 }
 
 export function DiscoverView({
@@ -37,6 +41,8 @@ export function DiscoverView({
   destinations,
   localItems,
   mineIds,
+  provenance,
+  onAdopted,
 }: DiscoverViewProps) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind | null>(null);
@@ -70,6 +76,9 @@ export function DiscoverView({
   const applyMergeResult = async (mergedBody: string) => {
     if (!merging) return;
     await adoptItem({ ...merging, body: mergedBody }, true, destPath).catch(() => {});
+    noteAdopted(merging.id, merging.kind, merging.name, merging.latest_revision).catch(() => {});
+    recordPull(merging.id).catch(() => {});
+    onAdopted();
     setMerging(null);
   };
 
@@ -116,6 +125,8 @@ export function DiscoverView({
                 key={it.id}
                 item={it}
                 mine={mineIds.has(it.id)}
+                adopted={provenance.get(it.id)}
+                onAdopted={onAdopted}
                 onOpen={() => setDetail(it)}
                 onAdopt={adopt}
                 onMergeNeeded={() => setMerging(it)}
@@ -130,6 +141,8 @@ export function DiscoverView({
         <SkillDetail
           item={detail}
           mine={mineIds.has(detail.id)}
+          adopted={provenance.get(detail.id)}
+          onAdopted={onAdopted}
           onClose={() => setDetail(null)}
           onAdopt={adopt}
           onMergeNeeded={() => {
@@ -155,12 +168,16 @@ export function DiscoverView({
 function SkillCard({
   item,
   mine,
+  adopted,
+  onAdopted,
   onOpen,
   onAdopt,
   onMergeNeeded,
 }: {
   item: PublicItem;
   mine: boolean;
+  adopted?: Adopted;
+  onAdopted: () => void;
   onOpen: () => void;
   onAdopt: (item: PublicItem, overwrite: boolean) => Promise<InstallOutcome>;
   onMergeNeeded: () => void;
@@ -187,7 +204,13 @@ function SkillCard({
         {mine ? (
           <span className="pub-tag published">Yours</span>
         ) : (
-          <AdoptControl item={item} onAdopt={onAdopt} onMergeNeeded={onMergeNeeded} />
+          <AdoptControl
+            item={item}
+            adopted={adopted}
+            onAdopted={onAdopted}
+            onAdopt={onAdopt}
+            onMergeNeeded={onMergeNeeded}
+          />
         )}
       </div>
     </button>
@@ -197,12 +220,16 @@ function SkillCard({
 function SkillDetail({
   item,
   mine,
+  adopted,
+  onAdopted,
   onClose,
   onAdopt,
   onMergeNeeded,
 }: {
   item: PublicItem;
   mine: boolean;
+  adopted?: Adopted;
+  onAdopted: () => void;
   onClose: () => void;
   onAdopt: (item: PublicItem, overwrite: boolean) => Promise<InstallOutcome>;
   onMergeNeeded: () => void;
@@ -225,7 +252,13 @@ function SkillDetail({
             {mine ? (
               <span className="pub-tag published">Yours</span>
             ) : (
-              <AdoptControl item={item} onAdopt={onAdopt} onMergeNeeded={onMergeNeeded} />
+              <AdoptControl
+                item={item}
+                adopted={adopted}
+                onAdopted={onAdopted}
+                onAdopt={onAdopt}
+                onMergeNeeded={onMergeNeeded}
+              />
             )}
           </div>
         </div>
@@ -237,18 +270,23 @@ function SkillDetail({
   );
 }
 
-/** Adopt → Adopted ✓ / Replace? / merge (rules) / can't adopt. */
+/** Adopt → Adopted ✓ / Update available → Take update / merge (conflict) / can't adopt. */
 function AdoptControl({
   item,
+  adopted,
+  onAdopted,
   onAdopt,
   onMergeNeeded,
 }: {
   item: PublicItem;
+  adopted?: Adopted;
+  onAdopted: () => void;
   onAdopt: (item: PublicItem, overwrite: boolean) => Promise<InstallOutcome>;
   onMergeNeeded: () => void;
 }) {
   const [status, setStatus] = useState<AdoptStatus>("idle");
   const [msg, setMsg] = useState("");
+  const updateAvailable = adopted && item.latest_revision > adopted.revision;
 
   const run = async (overwrite: boolean) => {
     setStatus("working");
@@ -257,9 +295,10 @@ function AdoptControl({
       if (outcome === "Created" || outcome === "Overwritten") {
         setStatus("done");
         recordPull(item.id).catch(() => {});
+        noteAdopted(item.id, item.kind, item.name, item.latest_revision).catch(() => {});
+        onAdopted();
       } else if (outcome === "Exists") {
-        // already present → always resolve via the diff/merge view, never a blunt overwrite
-        setStatus("idle");
+        setStatus("idle"); // resolve via the diff/merge view, never a blunt overwrite
         onMergeNeeded();
       } else {
         setStatus("unsupported");
@@ -272,12 +311,6 @@ function AdoptControl({
 
   if (status === "working") return <span className="pub-tag busy">adopting…</span>;
   if (status === "done") return <span className="pub-tag published">Adopted ✓</span>;
-  if (status === "exists")
-    return (
-      <button className="pub-btn ghost" title="Already present — replace it" onClick={() => run(true)}>
-        Replace?
-      </button>
-    );
   if (status === "unsupported")
     return (
       <span className="pub-tag busy" title="Memory isn’t adopted">
@@ -288,6 +321,20 @@ function AdoptControl({
     return (
       <span className="pub-tag busy" title={msg}>
         failed
+      </span>
+    );
+
+  // persistent state from provenance
+  if (updateAvailable)
+    return (
+      <button className="pub-btn drift" title={`You have v${adopted!.revision}; v${item.latest_revision} is out`} onClick={() => run(true)}>
+        Update → v{item.latest_revision}
+      </button>
+    );
+  if (adopted)
+    return (
+      <span className="pub-tag published" title={`Adopted v${adopted.revision}`}>
+        Adopted · v{adopted.revision}
       </span>
     );
   return (

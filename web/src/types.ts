@@ -49,6 +49,14 @@ export interface PublicItem {
   pulls: number;
 }
 
+/** A local record of something you adopted + the revision you took (for update notifications). */
+export interface Adopted {
+  source_id: string;
+  kind: string;
+  name: string;
+  revision: number;
+}
+
 /** The status of a local item relative to the registry, for badges/toggles. */
 export type PublishState =
   | { status: "unpublished" }

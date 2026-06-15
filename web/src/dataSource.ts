@@ -1,4 +1,4 @@
-import type { Item, PublicItem, Publication, UserInfo } from "./types";
+import type { Adopted, Item, PublicItem, Publication, UserInfo } from "./types";
 
 /** True when running inside the Tauri desktop shell (vs a plain browser). */
 export const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
@@ -29,6 +29,13 @@ export const browsePublic = () => call<PublicItem[]>("browse_public");
 
 /** Record that you pulled (adopted) a publication — drives the pull count. */
 export const recordPull = (id: string) => call<void>("record_pull", { id });
+
+/** Locally note an adoption (source id + revision) for update notifications. */
+export const noteAdopted = (id: string, kind: string, name: string, revision: number) =>
+  call<void>("note_adopted", { id, kind, name, revision });
+
+/** Everything you've adopted locally. */
+export const listProvenance = () => call<Adopted[]>("list_provenance");
 
 /** Outcome of adopting an item into the local ~/.claude. */
 export type InstallOutcome = "Created" | "Overwritten" | "Exists" | "Unsupported";

@@ -4,6 +4,7 @@ import { useScan } from "./hooks/useScan";
 import { useAuth } from "./hooks/useAuth";
 import { usePublications } from "./hooks/usePublications";
 import { useDiscover } from "./hooks/useDiscover";
+import { useProvenance } from "./hooks/useProvenance";
 import { PublishContext, type PublishApi } from "./hooks/publishContext";
 import { buildProjects } from "./lib/projects";
 import { countByKind, filterItems, groupByKind } from "./lib/grouping";
@@ -32,6 +33,7 @@ export default function App() {
   const auth = useAuth();
   const { items, loading, error, run } = useScan();
   const pubs = usePublications(!!auth.user);
+  const provenance = useProvenance(!!auth.user);
 
   const [tab, setTab] = useState<Tab>("global");
   const discover = useDiscover((tab === "discover" || tab === "people") && !!auth.user);
@@ -150,6 +152,8 @@ export default function App() {
               destinations={destinations}
               localItems={items}
               mineIds={mineIds}
+              provenance={provenance.bySource}
+              onAdopted={provenance.refresh}
             />
           )}
 

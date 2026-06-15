@@ -1,5 +1,6 @@
 mod auth;
 mod config;
+mod provenance;
 mod registry;
 mod session_store;
 
@@ -208,6 +209,23 @@ async fn record_pull(state: tauri::State<'_, AppState>, id: String) -> Result<()
     }
 }
 
+/// Record locally that you adopted a publication (for update notifications). No network.
+#[tauri::command]
+fn note_adopted(id: String, kind: String, name: String, revision: i64) {
+    provenance::record(provenance::Adopted {
+        source_id: id,
+        kind,
+        name,
+        revision,
+    });
+}
+
+/// Everything you've adopted (source id + revision), for the "update available" check.
+#[tauri::command]
+fn list_provenance() -> Vec<provenance::Adopted> {
+    provenance::list()
+}
+
 fn parse_kind(s: &str) -> Result<evolve::model::Kind, String> {
     use evolve::model::Kind::*;
     match s.to_lowercase().as_str() {
@@ -259,6 +277,8 @@ pub fn run() {
             browse_public,
             adopt_item,
             record_pull,
+            note_adopted,
+            list_provenance,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
