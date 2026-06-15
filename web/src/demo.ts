@@ -61,6 +61,11 @@ export const DEMO_ITEMS: Item[] = [
     body: "Prod GCP project is `auxia-gcp`; dev is `deductive-reach-346018`.",
   },
   skill(
+    "react-revise-checks",
+    "Global",
+    "---\nname: react-revise-checks\n---\n\n1. Flag stale closures in event handlers.\n2. Check effect dependency arrays.\n3. Prefer derived state over duplicated state.\n",
+  ),
+  skill(
     "react-review",
     proj("storefront"),
     "---\nname: react-review\n---\n\nReview React PRs: flag re-renders, missing memo, and effects that mirror props.",

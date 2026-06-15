@@ -155,7 +155,8 @@ export function DiscoverView({
       {merging && (
         <MergeView
           title={`Merge ${merging.name}`}
-          subtitle={`Fold ${merging.owner_name ?? "their"} version into your rule — pick what to keep.`}
+          name={merging.name}
+          subtitle={`Fold ${merging.owner_name ?? "their"} version into yours — pick, or adapt with AI.`}
           merge={buildMerge(yoursFor(merging), merging.body)}
           onApply={applyMergeResult}
           onCancel={() => setMerging(null)}

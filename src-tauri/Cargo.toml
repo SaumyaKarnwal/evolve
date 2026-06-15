@@ -25,7 +25,7 @@ tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
 evolve = { path = ".." }   # our scanner library — the desktop app's engine
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-tokio = { version = "1", features = ["net", "io-util"] }   # async loopback listener for the OAuth redirect
+tokio = { version = "1", features = ["net", "io-util", "process"] }   # async loopback listener + claude -p
 base64 = "0.22"          # PKCE verifier/challenge encoding (base64url)
 getrandom = "0.2"        # CSPRNG for the PKCE verifier
 urlencoding = "2"        # encode the redirect_to param / decode redirect query

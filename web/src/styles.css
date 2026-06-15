@@ -1361,6 +1361,21 @@ button.chip:hover:not(.is-active) {
   display: flex;
   gap: 6px;
 }
+.chip.ai {
+  background: var(--ocean-tint);
+  color: var(--ocean-700);
+  border-color: var(--ocean-tint);
+  font-weight: 600;
+}
+.chip.ai:hover:not(:disabled) {
+  background: var(--ocean);
+  color: #fff;
+  border-color: var(--ocean);
+}
+.chip.ai:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 .udiff {
   flex: 1;
   min-height: 0;

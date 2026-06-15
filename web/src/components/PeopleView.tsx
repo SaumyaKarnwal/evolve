@@ -230,7 +230,9 @@ function AdoptBuild({
             <div className="serif" style={{ fontSize: 19, fontWeight: 600 }}>
               Adopt {person.name}’s build
             </div>
-            <div className="by-line">{person.items.length} items · expand to read, then choose</div>
+            <div className="by-line">
+              Copy what’s new, merge what overlaps into one of yours, skip the rest.
+            </div>
           </div>
           <label className="dest-picker" style={{ marginLeft: "auto" }}>
             into
@@ -308,6 +310,7 @@ function AdoptBuild({
         <div className="modal-foot">
           <span className="ab-counts">
             {counts.copy} copy · {counts.merge} merge · {counts.skip} skip
+            {counts.merge > 0 ? " · you’ll review each merge" : ""}
           </span>
           <button className="btn btn-secondary" onClick={onClose}>
             {busy ? "Close" : "Cancel"}
@@ -321,7 +324,8 @@ function AdoptBuild({
       {current && (
         <MergeView
           title={`Merge ${current.incoming.name} → ${current.target.name}`}
-          subtitle={`Fold ${person.name}’s ${current.incoming.name} into your ${current.target.name}.`}
+          name={current.incoming.name}
+          subtitle={`Fold ${person.name}’s ${current.incoming.name} into your ${current.target.name} — pick, or adapt with AI.`}
           merge={buildMerge(current.target.body, current.incoming.body)}
           onApply={resolveMerge}
           onCancel={skipMerge}

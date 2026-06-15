@@ -226,6 +226,44 @@ fn list_provenance() -> Vec<provenance::Adopted> {
     provenance::list()
 }
 
+/// Intelligently merge two versions of an item using the user's own Claude (`claude -p`).
+/// Runs through a login shell so the `claude` binary is found on PATH. No API key of ours involved.
+#[tauri::command]
+async fn ai_merge(name: String, yours: String, theirs: String) -> Result<String, String> {
+    let prompt = format!(
+        "You are merging two versions of a Claude config item named \"{name}\".\n\n\
+         === MY VERSION ===\n{yours}\n\n\
+         === THEIR VERSION ===\n{theirs}\n\n\
+         Produce ONE merged version that preserves my intent and folds in their improvements. \
+         Resolve overlaps sensibly; keep it coherent. Output ONLY the merged file content — \
+         no commentary, no code fences."
+    );
+
+    use tokio::io::AsyncWriteExt;
+    let mut child = tokio::process::Command::new("/bin/zsh")
+        .args(["-lc", "claude -p"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("couldn't start claude: {e}"))?;
+    child
+        .stdin
+        .take()
+        .ok_or("no stdin")?
+        .write_all(prompt.as_bytes())
+        .await
+        .map_err(|e| e.to_string())?;
+    let out = child.wait_with_output().await.map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(format!(
+            "claude failed: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
 fn parse_kind(s: &str) -> Result<evolve::model::Kind, String> {
     use evolve::model::Kind::*;
     match s.to_lowercase().as_str() {
@@ -279,6 +317,7 @@ pub fn run() {
             record_pull,
             note_adopted,
             list_provenance,
+            ai_merge,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

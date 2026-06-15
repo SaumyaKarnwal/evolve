@@ -87,3 +87,13 @@ export const publishItem = (item: Item): Promise<Publication> =>
 
 export const unpublishItem = (item: { kind: string; name: string }) =>
   DEMO ? Promise.resolve() : call<void>("unpublish_item", { kind: item.kind, name: item.name });
+
+/** Intelligently merge two versions using the user's own Claude (`claude -p`). Demo: a naive union. */
+export const aiMerge = (name: string, yours: string, theirs: string): Promise<string> =>
+  DEMO ? Promise.resolve(demoMerge(yours, theirs)) : call<string>("ai_merge", { name, yours, theirs });
+
+function demoMerge(yours: string, theirs: string): string {
+  const have = new Set(yours.split("\n").map((l) => l.trim()));
+  const extra = theirs.split("\n").filter((l) => l.trim() && !have.has(l.trim()));
+  return extra.length ? `${yours.trimEnd()}\n${extra.join("\n")}\n` : theirs;
+}
