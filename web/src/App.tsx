@@ -163,6 +163,7 @@ export default function App() {
                     .map((p) => ({ label: p.name, path: p.path as string })),
                 ]}
                 localItems={items ?? []}
+                mineIds={new Set(pubs.list.map((p) => p.id))}
               />
             ) : (
               <div className="page">

@@ -25,9 +25,18 @@ interface DiscoverViewProps {
   destinations: DestOption[];
   /** Local scanned items — used to find "yours" when merging a rule. */
   localItems: Item[];
+  /** Publication ids the signed-in user owns — shown as "Yours", not adoptable. */
+  mineIds: Set<string>;
 }
 
-export function DiscoverView({ items, loading, error, destinations, localItems }: DiscoverViewProps) {
+export function DiscoverView({
+  items,
+  loading,
+  error,
+  destinations,
+  localItems,
+  mineIds,
+}: DiscoverViewProps) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind | null>(null);
   const [destPath, setDestPath] = useState<string | null>(null);
@@ -105,6 +114,7 @@ export function DiscoverView({ items, loading, error, destinations, localItems }
               <SkillCard
                 key={it.id}
                 item={it}
+                mine={mineIds.has(it.id)}
                 onOpen={() => setDetail(it)}
                 onAdopt={adopt}
                 onMergeNeeded={() => setMerging(it)}
@@ -118,6 +128,7 @@ export function DiscoverView({ items, loading, error, destinations, localItems }
       {detail && (
         <SkillDetail
           item={detail}
+          mine={mineIds.has(detail.id)}
           onClose={() => setDetail(null)}
           onAdopt={adopt}
           onMergeNeeded={() => {
@@ -142,11 +153,13 @@ export function DiscoverView({ items, loading, error, destinations, localItems }
 
 function SkillCard({
   item,
+  mine,
   onOpen,
   onAdopt,
   onMergeNeeded,
 }: {
   item: PublicItem;
+  mine: boolean;
   onOpen: () => void;
   onAdopt: (item: PublicItem, overwrite: boolean) => Promise<InstallOutcome>;
   onMergeNeeded: () => void;
@@ -159,7 +172,7 @@ function SkillCard({
           <KindTile kind={kind} />
           <div className="skill-card-id">
             <div className="skill-card-name mono">{item.name}</div>
-            <div className="by-line">by {item.owner_name ?? "Unknown"}</div>
+            <div className="by-line">{mine ? "published by you" : `by ${item.owner_name ?? "Unknown"}`}</div>
           </div>
         </div>
         <p className="blurb">{preview(item.body)}</p>
@@ -169,7 +182,11 @@ function SkillCard({
         </div>
       </div>
       <div className="skill-card-foot" onClick={(e) => e.stopPropagation()}>
-        <AdoptControl item={item} onAdopt={onAdopt} onMergeNeeded={onMergeNeeded} />
+        {mine ? (
+          <span className="pub-tag published">Yours</span>
+        ) : (
+          <AdoptControl item={item} onAdopt={onAdopt} onMergeNeeded={onMergeNeeded} />
+        )}
       </div>
     </button>
   );
@@ -177,11 +194,13 @@ function SkillCard({
 
 function SkillDetail({
   item,
+  mine,
   onClose,
   onAdopt,
   onMergeNeeded,
 }: {
   item: PublicItem;
+  mine: boolean;
   onClose: () => void;
   onAdopt: (item: PublicItem, overwrite: boolean) => Promise<InstallOutcome>;
   onMergeNeeded: () => void;
@@ -201,7 +220,11 @@ function SkillDetail({
             </div>
           </div>
           <div style={{ marginLeft: "auto" }}>
-            <AdoptControl item={item} onAdopt={onAdopt} onMergeNeeded={onMergeNeeded} />
+            {mine ? (
+              <span className="pub-tag published">Yours</span>
+            ) : (
+              <AdoptControl item={item} onAdopt={onAdopt} onMergeNeeded={onMergeNeeded} />
+            )}
           </div>
         </div>
         <div className="modal-body">
