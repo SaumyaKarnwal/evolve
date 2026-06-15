@@ -15,8 +15,8 @@ export function PublishButton({ item, api }: { item: Item; api: PublishApi }) {
   const state = api.stateOf(item);
   if (state.status === "unpublished") {
     return (
-      <button className="vis vis-private" title="Private — click to publish" onClick={stop(() => api.publish(item))}>
-        Private
+      <button className="vis vis-publish" title="Publish so others can adopt it" onClick={stop(() => api.publish(item))}>
+        ↑ Publish
       </button>
     );
   }

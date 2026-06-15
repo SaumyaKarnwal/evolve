@@ -318,6 +318,13 @@ button.chip:hover:not(.is-active) {
   background: var(--sage-tint);
   color: var(--sage-700);
 }
+.vis-publish {
+  background: var(--sage);
+  color: #fff;
+}
+.vis-publish:hover {
+  background: var(--sage-700);
+}
 .vis-public {
   background: var(--sage-tint);
   color: var(--sage-700);
