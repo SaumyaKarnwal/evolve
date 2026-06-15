@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { isTauri, restoreSession, signInGoogle, signOut } from "../dataSource";
+import { restoreSession, signInGoogle, signOut } from "../dataSource";
 import type { UserInfo } from "../types";
 
 /**
@@ -13,10 +13,7 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isTauri) {
-      setRestoring(false);
-      return;
-    }
+    // restoreSession returns the demo user in a browser, the keychain session in Tauri
     restoreSession()
       .then(setUser)
       .catch(() => {})
