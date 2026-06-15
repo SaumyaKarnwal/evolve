@@ -30,13 +30,18 @@ export const browsePublic = () => call<PublicItem[]>("browse_public");
 /** Outcome of adopting an item into the local ~/.claude. */
 export type InstallOutcome = "Created" | "Overwritten" | "Exists" | "Unsupported";
 
-/** Adopt a public item into the local ~/.claude (writes a file or appends a rule section). */
-export const adoptItem = (item: PublicItem, overwrite: boolean) =>
+/** Adopt a public item into the local config. `projectPath` null = global ~/.claude. */
+export const adoptItem = (
+  item: PublicItem,
+  overwrite: boolean,
+  projectPath: string | null = null,
+) =>
   call<InstallOutcome>("adopt_item", {
     kind: item.kind,
     name: item.name,
     body: item.body,
     overwrite,
+    project: projectPath,
   });
 
 export const publishItem = (item: Item) =>

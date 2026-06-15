@@ -156,6 +156,12 @@ export default function App() {
                 items={discover.items}
                 loading={discover.loading}
                 error={discover.error}
+                destinations={[
+                  { label: "Global", path: null },
+                  ...otherProjects
+                    .filter((p) => p.path)
+                    .map((p) => ({ label: p.name, path: p.path as string })),
+                ]}
               />
             ) : (
               <div className="page">

@@ -606,6 +606,196 @@ button.chip:hover:not(.is-active) {
   flex: none;
 }
 
+/* kind-colored icon tile (Discover cards) */
+.kind-tile {
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  flex: none;
+}
+.kind-tile.k-skill {
+  background: var(--coral-tint);
+  color: var(--coral-700);
+}
+.kind-tile.k-rule {
+  background: var(--sage-tint);
+  color: var(--sage-700);
+}
+.kind-tile.k-command {
+  background: var(--ocean-tint);
+  color: var(--ocean-700);
+}
+.kind-tile.k-agent {
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+.kind-tile.k-memory {
+  background: var(--paper-2);
+  color: var(--muted);
+}
+
+/* Discover (the library) */
+.discover {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 38px 40px 96px;
+}
+.discover-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.discover-head > div:first-child {
+  flex: 1;
+}
+.discover-head h1 {
+  font-family: var(--serif);
+  font-size: 38px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 6px 0 0;
+}
+.dest-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.dest-picker select {
+  height: 34px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  padding: 0 10px;
+  font: inherit;
+  color: var(--ink);
+}
+.discover-empty {
+  color: var(--muted);
+  font-size: 15px;
+}
+.discover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+}
+.skill-card {
+  text-align: left;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.15s, border-color 0.15s;
+}
+.skill-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sh-2);
+  border-color: var(--line-2);
+}
+.skill-card-body {
+  padding: 16px 17px 13px;
+  flex: 1;
+}
+.skill-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 11px;
+}
+.skill-card-id {
+  flex: 1;
+  min-width: 0;
+}
+.skill-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.by-line {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+.blurb {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  margin: 0 0 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.skill-card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.skill-card-foot {
+  border-top: 1px solid var(--line);
+  padding: 11px 16px;
+  display: flex;
+  align-items: center;
+  background: var(--surface);
+}
+.skill-card-foot > * {
+  margin-left: auto;
+}
+
+/* modal (skill detail) */
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(40, 28, 16, 0.34);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-xl);
+  box-shadow: var(--sh-3);
+  width: 100%;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.modal-body {
+  padding: 18px 24px;
+  overflow: auto;
+}
+.modal-body pre {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+}
+
 /* item cards */
 .item-list {
   display: flex;

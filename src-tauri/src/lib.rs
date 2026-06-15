@@ -207,17 +207,25 @@ fn parse_kind(s: &str) -> Result<evolve::model::Kind, String> {
     }
 }
 
-/// Adopt a published item into the local ~/.claude (a write). Local-only — no auth needed.
+/// Adopt a published item into the local config (a write). Local-only — no auth needed.
+/// `project` is the destination repo path; `None` means global `~/.claude`.
 #[tauri::command]
 fn adopt_item(
     kind: String,
     name: String,
     body: String,
     overwrite: bool,
+    project: Option<String>,
 ) -> Result<evolve::install::InstallOutcome, String> {
-    let root = evolve::default_claude_root().ok_or("can't locate ~/.claude")?;
     let kind = parse_kind(&kind)?;
-    evolve::install::install(&root, kind, &name, &body, overwrite)
+    let dest = match project {
+        Some(path) => evolve::install::Destination::project(std::path::Path::new(&path)),
+        None => {
+            let root = evolve::default_claude_root().ok_or("can't locate ~/.claude")?;
+            evolve::install::Destination::global(&root)
+        }
+    };
+    evolve::install::install(&dest, kind, &name, &body, overwrite)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
