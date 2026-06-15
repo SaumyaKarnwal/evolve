@@ -209,8 +209,8 @@ function SkillDetail({
 }) {
   const kind = toKind(item.kind);
   return (
-    <div className="scrim" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 680 }} onClick={(e) => e.stopPropagation()}>
+    <div className="scrim drawer-scrim" onClick={onClose}>
+      <div className="modal drawer" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <KindTile kind={kind} size={42} />
           <div className="skill-card-id">

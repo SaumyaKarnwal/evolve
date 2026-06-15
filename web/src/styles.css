@@ -1096,6 +1096,24 @@ button.chip:hover:not(.is-active) {
   display: flex;
   flex-direction: column;
 }
+
+/* right-side drawer (Discover skill detail, like the mock) */
+.drawer-scrim {
+  justify-content: flex-end;
+  padding: 0;
+}
+.modal.drawer {
+  height: 100vh;
+  max-height: 100vh;
+  width: 520px;
+  border-radius: var(--r-xl) 0 0 var(--r-xl);
+  animation: slideIn 0.18s ease;
+}
+@keyframes slideIn {
+  from {
+    transform: translateX(40px);
+  }
+}
 .modal-head {
   display: flex;
   align-items: center;
