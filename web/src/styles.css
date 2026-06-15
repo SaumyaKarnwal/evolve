@@ -1328,6 +1328,102 @@ button.chip:hover:not(.is-active) {
   border-top: 1px solid var(--line);
 }
 
+/* unified-diff merge */
+.merge-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.merge-legend {
+  display: flex;
+  gap: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: var(--mono);
+}
+.legend-rem {
+  color: var(--rem-ink);
+}
+.legend-add {
+  color: var(--add-ink);
+}
+.merge-bar .merge-allbtns {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+.udiff {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+  padding: 8px 0;
+}
+.uline {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.uline .ugut {
+  width: 14px;
+  flex: none;
+  user-select: none;
+  color: var(--faint);
+}
+.uctx {
+  color: var(--ink-2);
+}
+.urem {
+  background: var(--rem-bg);
+  color: var(--rem-ink);
+}
+.urem .ugut {
+  color: var(--rem-ink);
+}
+.uadd {
+  background: var(--add-bg);
+  color: var(--add-ink);
+}
+.uadd .ugut {
+  color: var(--add-ink);
+}
+.uline.dim {
+  opacity: 0.38;
+}
+.uhunk {
+  margin: 10px 0;
+  border-top: 1px solid var(--line-2);
+  border-bottom: 1px solid var(--line-2);
+}
+.uhunk-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 16px;
+  background: var(--surface);
+  font-family: var(--sans);
+}
+.uhunk-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.uhunk-bar .seg {
+  margin-left: auto;
+}
+.seg-opt:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* diff lines (merged preview) */
 .diff {
   font-family: var(--mono);

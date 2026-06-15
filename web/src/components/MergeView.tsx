@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { applyMerge, type Merge } from "../lib/diff";
-import { Markdown } from "./Markdown";
 
 interface MergeViewProps {
   title: string;
@@ -10,45 +9,32 @@ interface MergeViewProps {
   onCancel: () => void;
 }
 
-const KIND_TAG: Record<string, { label: string; cls: string }> = {
-  add: { label: "Their addition", cls: "t-add" },
-  local: { label: "Only yours", cls: "t-local" },
-  modify: { label: "Reworded", cls: "t-modify" },
+const KIND_TAG: Record<string, string> = {
+  add: "Their addition",
+  local: "Only in yours",
+  modify: "Changed",
 };
 
 type Choice = "theirs" | "mine";
-type RightView = "merged" | "yours" | "theirs";
 
-/** Resolve a merge: see your version, their version, and the live merged result; choose per change. */
+/** A unified-diff merge: see exactly what differs (− yours / + theirs) and pick per change. */
 export function MergeView({ title, subtitle, merge, onApply, onCancel }: MergeViewProps) {
   const [decisions, setDecisions] = useState<Record<string, Choice>>(() =>
     Object.fromEntries(merge.hunks.map((h) => [h.id, h.kind === "local" ? "mine" : "theirs"])),
   );
-  const [view, setView] = useState<RightView>("merged");
   const set = (id: string, v: Choice) => setDecisions((d) => ({ ...d, [id]: v }));
   const all = (v: Choice) => setDecisions(Object.fromEntries(merge.hunks.map((h) => [h.id, v])));
   const taken = Object.values(decisions).filter((d) => d === "theirs").length;
-
-  const allMine = useMemo(() => Object.fromEntries(merge.hunks.map((h) => [h.id, "mine" as Choice])), [merge]);
-  const allTheirs = useMemo(() => Object.fromEntries(merge.hunks.map((h) => [h.id, "theirs" as Choice])), [merge]);
-  const yoursFull = useMemo(() => applyMerge(merge, allMine), [merge, allMine]);
-  const theirsFull = useMemo(() => applyMerge(merge, allTheirs), [merge, allTheirs]);
-
-  const preview = useMemo(() => {
-    const rows: { t: "ctx" | "their" | "your"; text: string }[] = [];
-    for (const seg of merge.context) {
-      if (seg.type === "ctx") {
-        seg.lines.forEach((l) => rows.push({ t: "ctx", text: l }));
-      } else {
-        const h = merge.hunks.find((x) => x.id === seg.id)!;
-        const lines = decisions[h.id] === "theirs" ? h.theirs : h.yours;
-        lines.forEach((l) => rows.push({ t: decisions[h.id] === "theirs" ? "their" : "your", text: l }));
-      }
-    }
-    return rows;
-  }, [decisions, merge]);
-
   const noChanges = merge.hunks.length === 0;
+
+  const rows = useMemo(() => {
+    const out: { kind: "ctx" | "hunk"; lines?: string[]; hunkId?: string }[] = [];
+    for (const seg of merge.context) {
+      if (seg.type === "ctx") out.push({ kind: "ctx", lines: seg.lines });
+      else out.push({ kind: "hunk", hunkId: seg.id });
+    }
+    return out;
+  }, [merge]);
 
   return (
     <div className="scrim" onClick={onCancel}>
@@ -58,7 +44,7 @@ export function MergeView({ title, subtitle, merge, onApply, onCancel }: MergeVi
             ⌥
           </span>
           <div className="skill-card-id">
-            <div className="serif" style={{ fontSize: 20, fontWeight: 600 }}>
+            <div className="serif" style={{ fontSize: 19, fontWeight: 600 }}>
               {title}
             </div>
             <div className="by-line">{subtitle}</div>
@@ -68,97 +54,84 @@ export function MergeView({ title, subtitle, merge, onApply, onCancel }: MergeVi
           </button>
         </div>
 
-        <div className="merge-cols">
-          <div className="merge-left">
-            <div className="merge-left-head">
-              <span className="eyebrow">
-                {noChanges
-                  ? "Identical — nothing to resolve"
-                  : `${merge.hunks.length} change${merge.hunks.length === 1 ? "" : "s"}: yours vs theirs`}
-              </span>
-              {!noChanges && (
-                <span className="merge-allbtns">
-                  <button className="chip" onClick={() => all("theirs")}>
-                    Take all theirs
-                  </button>
-                  <button className="chip" onClick={() => all("mine")}>
-                    Keep all mine
-                  </button>
-                </span>
-              )}
-            </div>
+        <div className="merge-bar">
+          <span className="eyebrow">
+            {noChanges
+              ? "Identical — nothing to merge"
+              : `${merge.hunks.length} change${merge.hunks.length === 1 ? "" : "s"} · `}
+          </span>
+          {!noChanges && (
+            <span className="merge-legend">
+              <span className="legend-rem">− yours</span>
+              <span className="legend-add">+ theirs</span>
+            </span>
+          )}
+          {!noChanges && (
+            <span className="merge-allbtns">
+              <button className="chip" onClick={() => all("mine")}>
+                Keep all mine
+              </button>
+              <button className="chip" onClick={() => all("theirs")}>
+                Take all theirs
+              </button>
+            </span>
+          )}
+        </div>
 
-            {merge.hunks.map((h) => (
-              <div className="hunk-card" key={h.id}>
-                <div className="hunk-head">
-                  <span className={`tag ${KIND_TAG[h.kind].cls}`}>{KIND_TAG[h.kind].label}</span>
-                  <span className="hunk-label">{h.label || "(blank)"}</span>
+        <div className="udiff">
+          {rows.map((r, i) => {
+            if (r.kind === "ctx") {
+              return r.lines!.map((l, j) => (
+                <div className="uline uctx" key={`c${i}-${j}`}>
+                  <span className="ugut"> </span>
+                  {l || " "}
                 </div>
-                <div className="hunk-opts">
-                  {h.yours.length > 0 && (
+              ));
+            }
+            const h = merge.hunks.find((x) => x.id === r.hunkId)!;
+            const choice = decisions[h.id];
+            return (
+              <div className="uhunk" key={`h${i}`}>
+                <div className="uhunk-bar">
+                  <span className="uhunk-tag">{KIND_TAG[h.kind]}</span>
+                  <div className="seg">
                     <button
-                      className={"hunk-opt" + (decisions[h.id] === "mine" ? " sel" : "")}
+                      className={"seg-opt" + (choice === "mine" ? " sel" : "")}
                       onClick={() => set(h.id, "mine")}
+                      disabled={h.yours.length === 0}
                     >
-                      <span className="hunk-opt-tag">yours (have)</span>
-                      <pre>{h.yours.join("\n")}</pre>
+                      Keep yours
                     </button>
-                  )}
-                  {h.theirs.length > 0 && (
                     <button
-                      className={"hunk-opt" + (decisions[h.id] === "theirs" ? " sel" : "")}
+                      className={"seg-opt" + (choice === "theirs" ? " sel sel-merge" : "")}
                       onClick={() => set(h.id, "theirs")}
+                      disabled={h.theirs.length === 0}
                     >
-                      <span className="hunk-opt-tag">theirs (incoming)</span>
-                      <pre>{h.theirs.join("\n")}</pre>
+                      Take theirs
                     </button>
-                  )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="merge-right">
-            <div className="merge-right-head">
-              <div className="seg">
-                {(["merged", "yours", "theirs"] as RightView[]).map((v) => (
-                  <button
-                    key={v}
-                    className={"seg-opt" + (view === v ? " sel" : "")}
-                    onClick={() => setView(v)}
-                  >
-                    {v === "merged" ? "Merged result" : v === "yours" ? "Yours" : "Theirs"}
-                  </button>
+                {h.yours.map((l, j) => (
+                  <div className={"uline urem" + (choice === "mine" ? " chosen" : " dim")} key={`y${j}`}>
+                    <span className="ugut">−</span>
+                    {l || " "}
+                  </div>
                 ))}
-              </div>
-            </div>
-            {view === "merged" ? (
-              <div className="diff">
-                {preview.map((r, i) => (
-                  <div
-                    key={i}
-                    className={
-                      "diff-line " +
-                      (r.t === "their" ? "dl-add" : r.t === "your" ? "dl-your" : "dl-ctx")
-                    }
-                  >
-                    <span className="gutter">
-                      {r.t === "their" ? "+" : r.t === "your" ? "~" : " "}
-                    </span>
-                    {r.text || " "}
+                {h.theirs.map((l, j) => (
+                  <div className={"uline uadd" + (choice === "theirs" ? " chosen" : " dim")} key={`t${j}`}>
+                    <span className="ugut">+</span>
+                    {l || " "}
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="md-pane">
-                <Markdown text={view === "yours" ? yoursFull : theirsFull} />
-              </div>
-            )}
-          </div>
+            );
+          })}
         </div>
 
         <div className="merge-foot">
-          <span className="ab-counts">{taken} of {merge.hunks.length} taken from them</span>
+          <span className="ab-counts">
+            {noChanges ? "no differences" : `${taken} of ${merge.hunks.length} taken from them`}
+          </span>
           <button className="btn btn-secondary" onClick={onCancel}>
             Cancel
           </button>
