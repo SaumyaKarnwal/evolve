@@ -27,6 +27,9 @@ export const listPublications = () => call<Publication[]>("list_publications");
 /** Browse everyone's public publications (Discover). */
 export const browsePublic = () => call<PublicItem[]>("browse_public");
 
+/** Record that you pulled (adopted) a publication — drives the pull count. */
+export const recordPull = (id: string) => call<void>("record_pull", { id });
+
 /** Outcome of adopting an item into the local ~/.claude. */
 export type InstallOutcome = "Created" | "Overwritten" | "Exists" | "Unsupported";
 

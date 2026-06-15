@@ -32,6 +32,7 @@ pub struct PublicItem {
     pub latest_revision: i64,
     pub body: String,
     pub updated_at: String,
+    pub pulls: i64,
 }
 
 /// What to publish: the item's identity plus its current content.
@@ -127,6 +128,23 @@ pub async fn browse_public(
         .map_err(|e| e.to_string())?;
     let text = expect_success(resp).await?;
     serde_json::from_str(&text).map_err(|e| format!("decode public items: {e} — body: {text}"))
+}
+
+/// Record that the current user pulled (adopted) a publication — drives the pull count.
+pub async fn record_pull(
+    cfg: &SupabaseConfig,
+    access_token: &str,
+    publication_id: &str,
+) -> Result<(), String> {
+    let resp = reqwest::Client::new()
+        .post(rpc_url(cfg, "record_pull"))
+        .header("apikey", &cfg.anon_key)
+        .bearer_auth(access_token)
+        .json(&serde_json::json!({ "p_id": publication_id }))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    expect_success(resp).await.map(|_| ())
 }
 
 /// Return the response body on 2xx, else a descriptive error that includes the server's message.

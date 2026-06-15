@@ -221,6 +221,10 @@ button.chip:hover:not(.is-active) {
   background: var(--coral-tint);
   color: var(--coral-700);
 }
+.tag.pulls {
+  background: var(--sage-tint);
+  color: var(--sage-700);
+}
 
 /* auth chip (top bar) */
 .auth-chip {

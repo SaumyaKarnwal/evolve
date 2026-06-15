@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { type Item, type Kind, KIND_META, type PublicItem } from "../types";
-import { adoptItem, adoptRaw, type InstallOutcome } from "../dataSource";
+import { adoptItem, adoptRaw, recordPull, type InstallOutcome } from "../dataSource";
 import { preview } from "../lib/grouping";
 import { buildMerge } from "../lib/diff";
 import { KindDot } from "./KindDot";
@@ -174,6 +174,7 @@ function AdoptBuild({
       try {
         const o = await adoptItem(it, false, destPath);
         setStatus((s) => ({ ...s, [it.id]: o }));
+        if (o === "Created" || o === "Overwritten") recordPull(it.id).catch(() => {});
       } catch {
         setStatus((s) => ({ ...s, [it.id]: "error" }));
       }
@@ -201,6 +202,7 @@ function AdoptBuild({
     try {
       const o = await adoptRaw(incoming.kind, tgt.name, mergedBody, true, destPath);
       setStatus((s) => ({ ...s, [incoming.id]: o }));
+      recordPull(incoming.id).catch(() => {});
     } catch {
       setStatus((s) => ({ ...s, [incoming.id]: "error" }));
     }

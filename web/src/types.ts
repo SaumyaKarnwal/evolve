@@ -46,6 +46,7 @@ export interface PublicItem {
   latest_revision: number;
   body: string;
   updated_at: string;
+  pulls: number;
 }
 
 /** The status of a local item relative to the registry, for badges/toggles. */

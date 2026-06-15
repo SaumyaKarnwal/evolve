@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { type Item, type Kind, KIND_META, type PublicItem } from "../types";
-import { adoptItem, type InstallOutcome } from "../dataSource";
+import { adoptItem, recordPull, type InstallOutcome } from "../dataSource";
 import { preview } from "../lib/grouping";
 import { buildMerge } from "../lib/diff";
 import { KindTile } from "./KindTile";
@@ -58,7 +58,7 @@ export function DiscoverView({
           (!kind || toKind(i.kind) === kind) &&
           (!q || i.name.toLowerCase().includes(q) || i.body.toLowerCase().includes(q)),
       )
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => b.pulls - a.pulls || a.name.localeCompare(b.name));
   }, [items, kind, query]);
 
   const adopt = (item: PublicItem, overwrite: boolean) => adoptItem(item, overwrite, destPath);
@@ -180,6 +180,7 @@ function SkillCard({
         <div className="skill-card-tags">
           <span className="tag">{KIND_META[kind].label.toLowerCase()}</span>
           <span className="tag">v{item.latest_revision}</span>
+          {item.pulls > 0 && <span className="tag pulls">↓ {item.pulls} pulls</span>}
         </div>
       </div>
       <div className="skill-card-foot" onClick={(e) => e.stopPropagation()}>
@@ -217,7 +218,7 @@ function SkillDetail({
               {item.name}
             </div>
             <div className="by-line">
-              by {item.owner_name ?? "Unknown"} · v{item.latest_revision}
+              by {item.owner_name ?? "Unknown"} · v{item.latest_revision} · ↓ {item.pulls} pulls
             </div>
           </div>
           <div style={{ marginLeft: "auto" }}>
@@ -256,6 +257,7 @@ function AdoptControl({
       const outcome = await onAdopt(item, overwrite);
       if (outcome === "Created" || outcome === "Overwritten") {
         setStatus("done");
+        recordPull(item.id).catch(() => {});
       } else if (outcome === "Exists") {
         // a rule that already exists → resolve via the merge view, not a blunt overwrite
         if (isRule) {

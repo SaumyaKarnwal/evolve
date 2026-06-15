@@ -62,6 +62,15 @@ create index publication_owner_idx on publication (owner_id);
 create index publication_public_idx on publication (visibility) where visibility = 'public';
 create index revision_pub_idx on publication_revision (publication_id);
 
+-- ---- pulls (who adopted what) → drives the real "N pulls" count ------------
+create table pull (
+  publication_id uuid not null references publication (id) on delete cascade,
+  puller_id      uuid not null references app_user (id) on delete cascade,
+  created_at     timestamptz not null default now(),
+  primary key (publication_id, puller_id)
+);
+alter table pull enable row level security;
+
 -- ---- new-user trigger: create or BRIDGE the app_user row --------------------
 create function handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
@@ -199,14 +208,31 @@ create function browse_public() returns table (
   name            text,
   latest_revision int,
   body            text,
-  updated_at      timestamptz
+  updated_at      timestamptz,
+  pulls           bigint
 ) language sql security definer set search_path = public stable as $$
   select p.id, coalesce(u.display_name, u.email), p.kind, p.name,
-         p.latest_revision, r.body, p.updated_at
+         p.latest_revision, r.body, p.updated_at,
+         (select count(*) from pull where publication_id = p.id) as pulls
   from publication p
   join app_user u on p.owner_id = u.id
   join publication_revision r on r.publication_id = p.id and r.revision = p.latest_revision
   where p.visibility = 'public';
+$$;
+
+-- Record that the current user pulled (adopted) a publication. Idempotent per user.
+create function record_pull(p_id uuid) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  v_owner uuid;
+begin
+  select id into v_owner from app_user where auth_user_id = auth.uid();
+  if v_owner is null then
+    return;
+  end if;
+  insert into pull (publication_id, puller_id) values (p_id, v_owner)
+    on conflict do nothing;
+end;
 $$;
 
 -- ---- lock the surface: signed-in users, RPCs only -------------------------
@@ -223,10 +249,14 @@ revoke execute on function publish_item(item_kind, text, text, text, text) from 
 revoke execute on function unpublish_item(item_kind, text) from public;
 revoke execute on function my_publications() from public;
 revoke execute on function browse_public() from public;
+revoke execute on function record_pull(uuid) from public;
 
 grant execute on function publish_item(item_kind, text, text, text, text) to authenticated;
 grant execute on function unpublish_item(item_kind, text) to authenticated;
 grant execute on function my_publications() to authenticated;
 grant execute on function browse_public() to authenticated;
+grant execute on function record_pull(uuid) to authenticated;
+
+revoke all on table pull from anon, authenticated;
 
 revoke all on table app_user, publication, publication_revision from anon, authenticated;

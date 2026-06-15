@@ -195,6 +195,19 @@ async fn browse_public(
     }
 }
 
+#[tauri::command]
+async fn record_pull(state: tauri::State<'_, AppState>, id: String) -> Result<(), String> {
+    let cfg = require_config(&state)?;
+    let token = current_token(state.inner())?;
+    match registry::record_pull(&cfg, &token, &id).await {
+        Err(e) if is_auth_err(&e) => {
+            let token = refresh_token(state.inner(), &cfg).await?;
+            registry::record_pull(&cfg, &token, &id).await
+        }
+        other => other,
+    }
+}
+
 fn parse_kind(s: &str) -> Result<evolve::model::Kind, String> {
     use evolve::model::Kind::*;
     match s.to_lowercase().as_str() {
@@ -245,6 +258,7 @@ pub fn run() {
             list_publications,
             browse_public,
             adopt_item,
+            record_pull,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
