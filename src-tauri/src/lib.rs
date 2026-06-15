@@ -1,6 +1,7 @@
 mod auth;
 mod config;
 mod registry;
+mod session_store;
 
 use std::sync::Mutex;
 
@@ -33,6 +34,14 @@ fn user_info(session: &auth::Session) -> UserInfo {
     }
 }
 
+/// Store a fresh session: persist its (rotating) refresh token to the keychain and hold it in memory.
+fn store_session(state: &AppState, session: auth::Session) -> UserInfo {
+    let info = user_info(&session);
+    let _ = session_store::save(&session.refresh_token);
+    *state.session.lock().unwrap() = Some(session);
+    info
+}
+
 // ---- helpers: token retrieval + refresh (never hold the lock across an await) ----
 
 fn current_token(state: &AppState) -> Result<String, String> {
@@ -55,7 +64,7 @@ async fn refresh_token(state: &AppState, cfg: &SupabaseConfig) -> Result<String,
         .ok_or_else(|| "Not signed in".to_string())?;
     let session = auth::refresh(cfg, &refresh).await?;
     let token = session.access_token.clone();
-    *state.session.lock().unwrap() = Some(session);
+    store_session(state, session); // persist the rotated refresh token too
     Ok(token)
 }
 
@@ -84,19 +93,32 @@ fn scan() -> Vec<evolve::model::ScannedItem> {
 async fn sign_in_google(state: tauri::State<'_, AppState>) -> Result<UserInfo, String> {
     let cfg = require_config(&state)?;
     let session = auth::sign_in(&cfg).await?;
-    let info = user_info(&session);
-    *state.session.lock().unwrap() = Some(session);
-    Ok(info)
+    Ok(store_session(&state, session))
 }
 
 #[tauri::command]
 fn sign_out(state: tauri::State<'_, AppState>) {
+    session_store::clear();
     *state.session.lock().unwrap() = None;
 }
 
+/// On launch: if a refresh token is in the keychain, trade it for a live session (stay-signed-in).
+/// Returns the user when restored, `None` when there's no saved session or the token is stale.
 #[tauri::command]
-fn current_user(state: tauri::State<'_, AppState>) -> Option<UserInfo> {
-    state.session.lock().unwrap().as_ref().map(user_info)
+async fn restore_session(state: tauri::State<'_, AppState>) -> Result<Option<UserInfo>, String> {
+    let Ok(cfg) = require_config(&state) else {
+        return Ok(None);
+    };
+    let Some(refresh) = session_store::load() else {
+        return Ok(None);
+    };
+    match auth::refresh(&cfg, &refresh).await {
+        Ok(session) => Ok(Some(store_session(&state, session))),
+        Err(_) => {
+            session_store::clear(); // stale/invalid — require a fresh sign-in
+            Ok(None)
+        }
+    }
 }
 
 #[tauri::command]
@@ -158,6 +180,21 @@ async fn list_publications(
     }
 }
 
+#[tauri::command]
+async fn browse_public(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<registry::PublicItem>, String> {
+    let cfg = require_config(&state)?;
+    let token = current_token(state.inner())?;
+    match registry::browse_public(&cfg, &token).await {
+        Err(e) if is_auth_err(&e) => {
+            let token = refresh_token(state.inner(), &cfg).await?;
+            registry::browse_public(&cfg, &token).await
+        }
+        other => other,
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -169,10 +206,11 @@ pub fn run() {
             scan,
             sign_in_google,
             sign_out,
-            current_user,
+            restore_session,
             publish_item,
             unpublish_item,
             list_publications,
+            browse_public,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

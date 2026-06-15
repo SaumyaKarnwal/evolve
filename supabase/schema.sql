@@ -190,6 +190,25 @@ language sql security definer set search_path = public stable as $$
   where u.auth_user_id = auth.uid();
 $$;
 
+-- Browse everyone's PUBLIC publications (the Discover screen): each with its author's name and the
+-- latest revision's body, so a card can list it and expand to read the content.
+create function browse_public() returns table (
+  id              uuid,
+  owner_name      text,
+  kind            item_kind,
+  name            text,
+  latest_revision int,
+  body            text,
+  updated_at      timestamptz
+) language sql security definer set search_path = public stable as $$
+  select p.id, coalesce(u.display_name, u.email), p.kind, p.name,
+         p.latest_revision, r.body, p.updated_at
+  from publication p
+  join app_user u on p.owner_id = u.id
+  join publication_revision r on r.publication_id = p.id and r.revision = p.latest_revision
+  where p.visibility = 'public';
+$$;
+
 -- ---- lock the surface: signed-in users, RPCs only -------------------------
 -- The three functions above are the ENTIRE client API. Postgres grants EXECUTE to PUBLIC by default
 -- (which includes the anonymous role), so we revoke that first, then grant only to authenticated
@@ -203,9 +222,11 @@ revoke execute on function handle_new_user() from public, anon, authenticated;
 revoke execute on function publish_item(item_kind, text, text, text, text) from public;
 revoke execute on function unpublish_item(item_kind, text) from public;
 revoke execute on function my_publications() from public;
+revoke execute on function browse_public() from public;
 
 grant execute on function publish_item(item_kind, text, text, text, text) to authenticated;
 grant execute on function unpublish_item(item_kind, text) to authenticated;
 grant execute on function my_publications() to authenticated;
+grant execute on function browse_public() to authenticated;
 
 revoke all on table app_user, publication, publication_revision from anon, authenticated;

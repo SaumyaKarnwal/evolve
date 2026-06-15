@@ -1,19 +1,26 @@
 import { useCallback, useEffect, useState } from "react";
-import { currentUser, isTauri, signInGoogle, signOut } from "../dataSource";
+import { isTauri, restoreSession, signInGoogle, signOut } from "../dataSource";
 import type { UserInfo } from "../types";
 
-/** Auth state: the current user, a busy flag during sign-in, and sign in/out actions. */
+/**
+ * Auth state. On launch it tries to restore a persisted session from the keychain (`restoring`),
+ * so a returning user lands straight in the app without signing in again.
+ */
 export function useAuth() {
   const [user, setUser] = useState<UserInfo | null>(null);
+  const [restoring, setRestoring] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // On launch, ask the Rust side if a session already exists (it won't yet in v1, but cheap + future-proof).
   useEffect(() => {
-    if (!isTauri) return;
-    currentUser()
+    if (!isTauri) {
+      setRestoring(false);
+      return;
+    }
+    restoreSession()
       .then(setUser)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setRestoring(false));
   }, []);
 
   const signIn = useCallback(async () => {
@@ -33,5 +40,5 @@ export function useAuth() {
     setUser(null);
   }, []);
 
-  return { user, busy, error, signIn, logOut };
+  return { user, restoring, busy, error, signIn, logOut };
 }

@@ -22,6 +22,18 @@ pub struct Publication {
     pub updated_at: String,
 }
 
+/// A public publication from someone (the Discover feed): author + latest content.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PublicItem {
+    pub id: String,
+    pub owner_name: Option<String>,
+    pub kind: String,
+    pub name: String,
+    pub latest_revision: i64,
+    pub body: String,
+    pub updated_at: String,
+}
+
 /// What to publish: the item's identity plus its current content.
 #[derive(Debug, Clone)]
 pub struct PublishInput {
@@ -43,7 +55,8 @@ pub async fn publish(
     input: &PublishInput,
 ) -> Result<Publication, String> {
     let payload = serde_json::json!({
-        "p_kind": input.kind,
+        // the Postgres item_kind enum is lowercase ('skill', …); our Kind serializes as 'Skill'
+        "p_kind": input.kind.to_lowercase(),
         "p_name": input.name,
         "p_hash": input.hash,
         "p_body": input.body,
@@ -70,7 +83,7 @@ pub async fn unpublish(
     kind: &str,
     name: &str,
 ) -> Result<(), String> {
-    let payload = serde_json::json!({ "p_kind": kind, "p_name": name });
+    let payload = serde_json::json!({ "p_kind": kind.to_lowercase(), "p_name": name });
     let resp = reqwest::Client::new()
         .post(rpc_url(cfg, "unpublish_item"))
         .header("apikey", &cfg.anon_key)
@@ -97,6 +110,23 @@ pub async fn my_publications(
         .map_err(|e| e.to_string())?;
     let text = expect_success(resp).await?;
     serde_json::from_str(&text).map_err(|e| format!("decode publications: {e} — body: {text}"))
+}
+
+/// Browse everyone's public publications (the Discover feed).
+pub async fn browse_public(
+    cfg: &SupabaseConfig,
+    access_token: &str,
+) -> Result<Vec<PublicItem>, String> {
+    let resp = reqwest::Client::new()
+        .post(rpc_url(cfg, "browse_public"))
+        .header("apikey", &cfg.anon_key)
+        .bearer_auth(access_token)
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let text = expect_success(resp).await?;
+    serde_json::from_str(&text).map_err(|e| format!("decode public items: {e} — body: {text}"))
 }
 
 /// Return the response body on 2xx, else a descriptive error that includes the server's message.

@@ -49,7 +49,8 @@ export function BuildView({
   const byKind = new Map<Kind, Publication[]>();
   for (const k of Object.keys(KIND_META) as Kind[]) {
     const inKind = publications
-      .filter((p) => (p.kind as Kind) === k)
+      // registry kinds are lowercase ('skill'); KIND_META keys are capitalized ('Skill')
+      .filter((p) => p.kind.toLowerCase() === k.toLowerCase())
       .sort((a, b) => a.name.localeCompare(b.name));
     if (inKind.length) byKind.set(k, inKind);
   }

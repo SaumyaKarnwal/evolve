@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isTauri } from "./dataSource";
 import { useScan } from "./hooks/useScan";
 import { useAuth } from "./hooks/useAuth";
 import { usePublications } from "./hooks/usePublications";
+import { useDiscover } from "./hooks/useDiscover";
 import { PublishContext, type PublishApi } from "./hooks/publishContext";
 import { buildProjects } from "./lib/projects";
 import { countByKind, filterItems, groupByKind } from "./lib/grouping";
@@ -10,24 +11,42 @@ import type { Kind } from "./types";
 import { Topbar } from "./components/Topbar";
 import { Tabs } from "./components/Tabs";
 import { AuthButton } from "./components/AuthButton";
-import { EmptyState } from "./components/EmptyState";
+import { SignInScreen } from "./components/SignInScreen";
 import { ProjectList } from "./components/ProjectList";
 import { Filters } from "./components/Filters";
 import { PageHeader } from "./components/PageHeader";
 import { KindSection } from "./components/KindSection";
 import { BuildView } from "./components/BuildView";
+import { DiscoverView } from "./components/DiscoverView";
 
-type Tab = "global" | "projects" | "build";
+type Tab = "global" | "projects" | "build" | "discover";
 
 export default function App() {
-  const { items, loading, error, run } = useScan();
   const auth = useAuth();
+  const { items, loading, error, run } = useScan();
   const pubs = usePublications(!!auth.user);
 
   const [tab, setTab] = useState<Tab>("global");
+  const discover = useDiscover(tab === "discover" && !!auth.user);
   const [projectKey, setProjectKey] = useState<string | null>(null);
   const [kind, setKind] = useState<Kind | null>(null);
   const [query, setQuery] = useState("");
+
+  // Once signed in, scan automatically — no manual Sync button.
+  useEffect(() => {
+    if (auth.user && !items && !loading) run();
+  }, [auth.user, items, loading, run]);
+
+  // Re-scan when the window regains focus, so edits made in your editor are picked up (and drift
+  // against published versions is detected) without a manual Sync button.
+  useEffect(() => {
+    if (!auth.user) return;
+    const onFocus = () => {
+      if (!loading) run();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [auth.user, loading, run]);
 
   const projects = useMemo(() => buildProjects(items ?? []), [items]);
   const globalItems = useMemo(
@@ -60,53 +79,67 @@ export default function App() {
     setQuery("");
   };
 
+  // --- gated states: restoring session → sign-in → app ---
+  if (auth.restoring) {
+    return (
+      <div className="app">
+        <div className="loading">
+          <span className="spinner" /> Restoring your session…
+        </div>
+      </div>
+    );
+  }
+  if (!auth.user) {
+    return (
+      <SignInScreen
+        onSignIn={auth.signIn}
+        busy={auth.busy}
+        canSignIn={isTauri}
+        error={auth.error}
+      />
+    );
+  }
+
   const showingProjectList = tab === "projects" && !selectedProject;
   const inScope = tab === "global" ? globalItems : selectedProject?.items ?? [];
-  const counts = useMemo(() => countByKind(inScope), [inScope]);
-  const visible = useMemo(() => filterItems(inScope, kind, query), [inScope, kind, query]);
-  const sections = useMemo(() => groupByKind(visible), [visible]);
-
-  const authArea = (
-    <AuthButton
-      user={auth.user}
-      busy={auth.busy}
-      onSignIn={auth.signIn}
-      onSignOut={auth.logOut}
-    />
-  );
+  const counts = countByKind(inScope);
+  const visible = filterItems(inScope, kind, query);
+  const sections = groupByKind(visible);
 
   return (
     <PublishContext.Provider value={publishApi}>
       <div className="app">
         <Topbar
           count={items?.length ?? null}
-          loading={loading}
-          synced={!!items}
-          onSync={run}
-          authArea={items ? authArea : undefined}
-        >
-          {items && (
-            <Tabs
-              tabs={[
-                { id: "global", label: "Global" },
-                { id: "projects", label: "Projects" },
-                { id: "build", label: "Build" },
-              ]}
-              active={tab}
-              onChange={goTab}
+          authArea={
+            <AuthButton
+              user={auth.user}
+              busy={auth.busy}
+              onSignIn={auth.signIn}
+              onSignOut={auth.logOut}
             />
-          )}
+          }
+        >
+          <Tabs
+            tabs={[
+              { id: "global", label: "Global" },
+              { id: "projects", label: "Projects" },
+              { id: "build", label: "Build" },
+              { id: "discover", label: "Discover" },
+            ]}
+            active={tab}
+            onChange={goTab}
+          />
         </Topbar>
 
-        {!items && !loading && <EmptyState onSync={run} canSync={isTauri} />}
-        {loading && !items && (
+        {error && <div className="error">Couldn’t scan: {error}</div>}
+        {pubs.error && <div className="error">Publish: {pubs.error}</div>}
+
+        {!items && loading && (
           <div className="loading">
             <span className="spinner" /> Scanning ~/.claude…
           </div>
         )}
-        {error && <div className="error">Couldn’t scan: {error}</div>}
-        {auth.error && <div className="error">Sign-in: {auth.error}</div>}
-        {pubs.error && <div className="error">Publish: {pubs.error}</div>}
 
         {items && (
           <main className="main">
@@ -117,6 +150,12 @@ export default function App() {
                 signingIn={auth.busy}
                 publications={pubs.list}
                 onUnpublish={(p) => pubs.unpublish(p)}
+              />
+            ) : tab === "discover" ? (
+              <DiscoverView
+                items={discover.items}
+                loading={discover.loading}
+                error={discover.error}
               />
             ) : (
               <div className="page">

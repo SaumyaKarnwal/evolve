@@ -1,4 +1,4 @@
-import type { Item, Publication, UserInfo } from "./types";
+import type { Item, PublicItem, Publication, UserInfo } from "./types";
 
 /** True when running inside the Tauri desktop shell (vs a plain browser). */
 export const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
@@ -19,10 +19,13 @@ export async function scan(): Promise<Item[]> {
 // ---- auth ----
 export const signInGoogle = () => call<UserInfo>("sign_in_google");
 export const signOut = () => call<void>("sign_out");
-export const currentUser = () => call<UserInfo | null>("current_user");
+/** On launch: restore a persisted session from the keychain (null if none / stale). */
+export const restoreSession = () => call<UserInfo | null>("restore_session");
 
 // ---- registry ----
 export const listPublications = () => call<Publication[]>("list_publications");
+/** Browse everyone's public publications (Discover). */
+export const browsePublic = () => call<PublicItem[]>("browse_public");
 
 export const publishItem = (item: Item) =>
   call<Publication>("publish_item", {

@@ -21,14 +21,20 @@ export function PublishButton({ item, api }: { item: Item; api: PublishApi }) {
     );
   }
   if (state.status === "drifted") {
+    // published at vN, but local content has changed since — offer to publish the new version
     return (
-      <button
-        className="pub-btn drift"
-        title="Local content changed since you last published"
-        onClick={stop(() => api.publish(item))}
-      >
-        Publish update
-      </button>
+      <>
+        <span className="tag" title="Currently published version">
+          v{state.revision}
+        </span>
+        <button
+          className="pub-btn drift"
+          title="Your local copy changed — publish it as a new version"
+          onClick={stop(() => api.publish(item))}
+        >
+          Publish update
+        </button>
+      </>
     );
   }
   // published and in sync
