@@ -144,6 +144,9 @@ export default function App() {
 
   const showingProjectList = tab === "projects" && !selectedProject;
   const inScope = tab === "global" ? globalItems : selectedProject?.items ?? [];
+  const publicCount = globalItems.filter((i) => pubs.stateOf(i).status !== "unpublished").length;
+  const globalSummary =
+    `${globalItems.length} items · ${publicCount} public · the rest stay private.`;
   const counts = countByKind(inScope);
   const visible = filterItems(inScope, kind, query);
   const sections = groupByKind(visible);
@@ -221,7 +224,7 @@ export default function App() {
                     title={tab === "global" ? "My Claude" : selectedProject!.name}
                     sub={
                       tab === "global"
-                        ? "Everything your Claude has learned and everything you’ve taught it — your shareable setup."
+                        ? globalSummary
                         : selectedProject!.path ??
                           (selectedProject!.unresolved
                             ? "Path could not be resolved from transcripts."
