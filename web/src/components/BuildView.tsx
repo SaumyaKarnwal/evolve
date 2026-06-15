@@ -1,8 +1,8 @@
-import { type Kind, KIND_META, type Publication } from "../types";
+import { type Kind, KIND_META, type Publication, type UserInfo } from "../types";
 import { KindDot } from "./KindDot";
-import { PageHeader } from "./PageHeader";
 
 interface BuildViewProps {
+  user: UserInfo | null;
   signedIn: boolean;
   onSignIn: () => void;
   signingIn: boolean;
@@ -10,22 +10,22 @@ interface BuildViewProps {
   onUnpublish: (p: Publication) => void;
 }
 
-/** The Build tab: everything you've published, grouped by kind, with unpublish. Gated on sign-in. */
-export function BuildView({
-  signedIn,
-  onSignIn,
-  signingIn,
-  publications,
-  onUnpublish,
-}: BuildViewProps) {
-  if (!signedIn) {
+const initialsOf = (s: string) =>
+  s
+    .split(/[\s@._-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("") || "?";
+
+/** The Profile tab: your identity + stats, then your published build (grouped by kind). */
+export function BuildView({ user, signedIn, onSignIn, signingIn, publications, onUnpublish }: BuildViewProps) {
+  if (!signedIn || !user) {
     return (
       <div className="empty">
         <div className="empty-mark">✶</div>
         <h2>Share your setup</h2>
-        <p>
-          Sign in to publish skills, rules, memory, commands and agents — and manage what you’ve shared.
-        </p>
+        <p>Sign in to publish skills, rules, memory, commands and agents — and manage what you’ve shared.</p>
         <button className="btn btn-primary btn-lg" onClick={onSignIn} disabled={signingIn}>
           {signingIn ? "Signing in…" : "Sign in with Google"}
         </button>
@@ -33,61 +33,76 @@ export function BuildView({
     );
   }
 
-  if (publications.length === 0) {
-    return (
-      <div className="page">
-        <PageHeader
-          eyebrow="Your build"
-          title="Nothing published yet"
-          sub="Open the Global tab or a project and hit Publish on any item — it’ll show up here."
-        />
-      </div>
-    );
+  const name = user.name ?? user.email ?? "You";
+  const counts = new Map<Kind, number>();
+  for (const p of publications) {
+    const k = (p.kind.charAt(0).toUpperCase() + p.kind.slice(1)) as Kind;
+    counts.set(k, (counts.get(k) ?? 0) + 1);
   }
 
-  // group publications by kind, in canonical order
   const byKind = new Map<Kind, Publication[]>();
   for (const k of Object.keys(KIND_META) as Kind[]) {
-    const inKind = publications
-      // registry kinds are lowercase ('skill'); KIND_META keys are capitalized ('Skill')
-      .filter((p) => p.kind.toLowerCase() === k.toLowerCase())
+    const inK = publications
+      .filter((p) => (p.kind.charAt(0).toUpperCase() + p.kind.slice(1)) === k)
       .sort((a, b) => a.name.localeCompare(b.name));
-    if (inKind.length) byKind.set(k, inKind);
+    if (inK.length) byKind.set(k, inK);
   }
 
   return (
     <div className="page">
-      <PageHeader
-        eyebrow="Your build"
-        title="Published"
-        sub={`${publications.length} item${publications.length === 1 ? "" : "s"} shared from your setup.`}
-      />
-      {[...byKind.entries()].map(([kind, list]) => (
-        <section className="kind-section" key={kind}>
-          <div className="kind-head">
-            <KindDot kind={kind} />
-            <h2>{KIND_META[kind].plural}</h2>
-            <span className="count">{list.length}</span>
+      <header className="profile-head">
+        <span className="avatar xl">{initialsOf(name)}</span>
+        <div className="profile-id">
+          <div className="eyebrow">Your build</div>
+          <h1 className="profile-name serif">{name}</h1>
+          {user.email && <div className="profile-email">{user.email}</div>}
+        </div>
+        <div className="profile-stats">
+          <div className="stat">
+            <span className="stat-n">{publications.length}</span>
+            <span className="stat-l">published</span>
           </div>
-          <div className="item-list">
-            {list.map((p) => (
-              <div className="card item-card" key={p.id}>
-                <div className="item-row">
-                  <KindDot kind={kind} />
-                  <span className="item-name">{p.name}</span>
-                  <span className="item-preview" />
-                  <span className="item-meta">
-                    <span className="tag">v{p.latest_revision}</span>
-                    <button className="pub-btn ghost" onClick={() => onUnpublish(p)}>
-                      Unpublish
-                    </button>
-                  </span>
+          {[...counts.entries()].map(([k, n]) => (
+            <div className="stat" key={k}>
+              <span className="stat-n">{n}</span>
+              <span className="stat-l">{KIND_META[k].plural.toLowerCase()}</span>
+            </div>
+          ))}
+        </div>
+      </header>
+
+      {publications.length === 0 ? (
+        <p className="discover-empty">
+          Nothing published yet — open My Claude and flip an item to <strong>Public</strong>.
+        </p>
+      ) : (
+        [...byKind.entries()].map(([kind, list]) => (
+          <section className="kind-section" key={kind}>
+            <div className="kind-head">
+              <KindDot kind={kind} />
+              <h2>{KIND_META[kind].plural}</h2>
+              <span className="count">{list.length}</span>
+            </div>
+            <div className="item-list">
+              {list.map((p) => (
+                <div className="card item-card" key={p.id}>
+                  <div className="item-row">
+                    <KindDot kind={kind} />
+                    <span className="item-name mono">{p.name}</span>
+                    <span className="item-preview" />
+                    <span className="item-meta">
+                      <span className="tag">v{p.latest_revision}</span>
+                      <button className="pub-btn ghost" onClick={() => onUnpublish(p)}>
+                        Unpublish
+                      </button>
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ))}
+              ))}
+            </div>
+          </section>
+        ))
+      )}
     </div>
   );
 }

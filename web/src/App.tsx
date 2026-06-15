@@ -136,6 +136,7 @@ export default function App() {
 
           {items && tab === "build" && (
             <BuildView
+              user={auth.user}
               signedIn={!!auth.user}
               onSignIn={auth.signIn}
               signingIn={auth.busy}
