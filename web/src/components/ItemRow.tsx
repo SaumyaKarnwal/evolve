@@ -44,8 +44,13 @@ export function ItemRow({ item, showProject }: ItemRowProps) {
         >
           {item.name}
         </span>
-        {item.source_anchor && item.source_anchor !== item.name && (
-          <span className="item-anchor">· {item.source_anchor}</span>
+        {publish?.originOf(item) ? (
+          <span className="item-anchor">· pulled from {publish.originOf(item)}</span>
+        ) : (
+          item.source_anchor &&
+          item.source_anchor !== item.name && (
+            <span className="item-anchor">· {item.source_anchor}</span>
+          )
         )}
         {!open && <span className="item-preview">{preview(item.body)}</span>}
         <span className="item-meta">

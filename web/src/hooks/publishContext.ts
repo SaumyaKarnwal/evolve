@@ -10,6 +10,8 @@ export interface PublishApi {
   isBusy: (item: Item) => boolean;
   /** If this local item was adopted and its source shipped a newer revision, that revision; else null. */
   updateFor: (item: Item) => number | null;
+  /** The author this item was pulled from, if it was adopted; else null. */
+  originOf: (item: Item) => string | null;
 }
 
 export const PublishContext = createContext<PublishApi | null>(null);

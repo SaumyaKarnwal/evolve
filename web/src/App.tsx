@@ -80,6 +80,10 @@ export default function App() {
     () => new Map((discover.items ?? []).map((i) => [i.id, i.latest_revision])),
     [discover.items],
   );
+  const ownerBySource = useMemo(
+    () => new Map((discover.items ?? []).map((i) => [i.id, i.owner_name])),
+    [discover.items],
+  );
 
   const publishApi: PublishApi = useMemo(
     () => ({
@@ -94,8 +98,12 @@ export default function App() {
         const latest = latestBySource.get(a.source_id);
         return latest !== undefined && latest > a.revision ? latest : null;
       },
+      originOf: (item) => {
+        const a = adoptedByName.get(`${item.kind.toLowerCase()} ${item.name}`);
+        return a ? ownerBySource.get(a.source_id) ?? null : null;
+      },
     }),
-    [auth.user, pubs, adoptedByName, latestBySource],
+    [auth.user, pubs, adoptedByName, latestBySource, ownerBySource],
   );
 
   // count adopted items whose source has shipped a newer revision (the update badge)
