@@ -8,9 +8,7 @@ import { PublishContext, type PublishApi } from "./hooks/publishContext";
 import { buildProjects } from "./lib/projects";
 import { countByKind, filterItems, groupByKind } from "./lib/grouping";
 import type { Kind } from "./types";
-import { Topbar } from "./components/Topbar";
-import { Tabs } from "./components/Tabs";
-import { AuthButton } from "./components/AuthButton";
+import { SideNav, NAV_ICONS } from "./components/SideNav";
 import { SignInScreen } from "./components/SignInScreen";
 import { ProjectList } from "./components/ProjectList";
 import { Filters } from "./components/Filters";
@@ -18,8 +16,17 @@ import { PageHeader } from "./components/PageHeader";
 import { KindSection } from "./components/KindSection";
 import { BuildView } from "./components/BuildView";
 import { DiscoverView } from "./components/DiscoverView";
+import { PeopleView } from "./components/PeopleView";
 
-type Tab = "global" | "projects" | "build" | "discover";
+type Tab = "global" | "projects" | "discover" | "people" | "build";
+
+const NAV = [
+  { id: "global" as const, label: "My Claude", icon: NAV_ICONS.myclaude },
+  { id: "projects" as const, label: "Projects", icon: NAV_ICONS.projects },
+  { id: "discover" as const, label: "Discover", icon: NAV_ICONS.discover },
+  { id: "people" as const, label: "People", icon: NAV_ICONS.people },
+  { id: "build" as const, label: "Build", icon: NAV_ICONS.build },
+];
 
 export default function App() {
   const auth = useAuth();
@@ -27,18 +34,15 @@ export default function App() {
   const pubs = usePublications(!!auth.user);
 
   const [tab, setTab] = useState<Tab>("global");
-  const discover = useDiscover(tab === "discover" && !!auth.user);
+  const discover = useDiscover((tab === "discover" || tab === "people") && !!auth.user);
   const [projectKey, setProjectKey] = useState<string | null>(null);
   const [kind, setKind] = useState<Kind | null>(null);
   const [query, setQuery] = useState("");
 
-  // Once signed in, scan automatically — no manual Sync button.
+  // Once signed in, scan automatically; re-scan on window focus (picks up edits, drift).
   useEffect(() => {
     if (auth.user && !items && !loading) run();
   }, [auth.user, items, loading, run]);
-
-  // Re-scan when the window regains focus, so edits made in your editor are picked up (and drift
-  // against published versions is detected) without a manual Sync button.
   useEffect(() => {
     if (!auth.user) return;
     const onFocus = () => {
@@ -55,6 +59,14 @@ export default function App() {
   );
   const otherProjects = useMemo(() => projects.filter((p) => p.key !== "__global"), [projects]);
   const selectedProject = otherProjects.find((p) => p.key === projectKey) ?? null;
+  const mineIds = useMemo(() => new Set(pubs.list.map((p) => p.id)), [pubs.list]);
+  const destinations = useMemo(
+    () => [
+      { label: "Global", path: null as string | null },
+      ...otherProjects.filter((p) => p.path).map((p) => ({ label: p.name, path: p.path as string })),
+    ],
+    [otherProjects],
+  );
 
   const publishApi: PublishApi = useMemo(
     () => ({
@@ -79,7 +91,6 @@ export default function App() {
     setQuery("");
   };
 
-  // --- gated states: restoring session → sign-in → app ---
   if (auth.restoring) {
     return (
       <div className="app">
@@ -91,12 +102,7 @@ export default function App() {
   }
   if (!auth.user) {
     return (
-      <SignInScreen
-        onSignIn={auth.signIn}
-        busy={auth.busy}
-        canSignIn={isTauri}
-        error={auth.error}
-      />
+      <SignInScreen onSignIn={auth.signIn} busy={auth.busy} canSignIn={isTauri} error={auth.error} />
     );
   }
 
@@ -109,108 +115,100 @@ export default function App() {
   return (
     <PublishContext.Provider value={publishApi}>
       <div className="app">
-        <Topbar
+        <SideNav
+          items={NAV}
+          active={tab}
+          onChange={goTab}
+          user={auth.user}
+          onSignOut={auth.logOut}
           count={items?.length ?? null}
-          authArea={
-            <AuthButton
-              user={auth.user}
-              busy={auth.busy}
+        />
+        <main className="main">
+          {error && <div className="error">Couldn’t scan: {error}</div>}
+          {pubs.error && <div className="error">Publish: {pubs.error}</div>}
+          {!items && loading && (
+            <div className="loading">
+              <span className="spinner" /> Scanning ~/.claude…
+            </div>
+          )}
+
+          {items && tab === "build" && (
+            <BuildView
+              signedIn={!!auth.user}
               onSignIn={auth.signIn}
-              onSignOut={auth.logOut}
+              signingIn={auth.busy}
+              publications={pubs.list}
+              onUnpublish={(p) => pubs.unpublish(p)}
             />
-          }
-        >
-          <Tabs
-            tabs={[
-              { id: "global", label: "Global" },
-              { id: "projects", label: "Projects" },
-              { id: "build", label: "Build" },
-              { id: "discover", label: "Discover" },
-            ]}
-            active={tab}
-            onChange={goTab}
-          />
-        </Topbar>
+          )}
 
-        {error && <div className="error">Couldn’t scan: {error}</div>}
-        {pubs.error && <div className="error">Publish: {pubs.error}</div>}
+          {items && tab === "discover" && (
+            <DiscoverView
+              items={discover.items}
+              loading={discover.loading}
+              error={discover.error}
+              destinations={destinations}
+              localItems={items}
+              mineIds={mineIds}
+            />
+          )}
 
-        {!items && loading && (
-          <div className="loading">
-            <span className="spinner" /> Scanning ~/.claude…
-          </div>
-        )}
+          {items && tab === "people" && (
+            <PeopleView
+              items={discover.items}
+              loading={discover.loading}
+              error={discover.error}
+              mineIds={mineIds}
+              destinations={destinations}
+              localItems={items}
+            />
+          )}
 
-        {items && (
-          <main className="main">
-            {tab === "build" ? (
-              <BuildView
-                signedIn={!!auth.user}
-                onSignIn={auth.signIn}
-                signingIn={auth.busy}
-                publications={pubs.list}
-                onUnpublish={(p) => pubs.unpublish(p)}
-              />
-            ) : tab === "discover" ? (
-              <DiscoverView
-                items={discover.items}
-                loading={discover.loading}
-                error={discover.error}
-                destinations={[
-                  { label: "Global", path: null },
-                  ...otherProjects
-                    .filter((p) => p.path)
-                    .map((p) => ({ label: p.name, path: p.path as string })),
-                ]}
-                localItems={items ?? []}
-                mineIds={new Set(pubs.list.map((p) => p.id))}
-              />
-            ) : (
-              <div className="page">
-                {showingProjectList ? (
-                  <>
-                    <PageHeader
-                      eyebrow="By location"
-                      title="Projects"
-                      sub={`${otherProjects.length} projects with their own config and memory.`}
-                    />
-                    <ProjectList projects={otherProjects} onOpen={openProject} />
-                  </>
-                ) : (
-                  <>
-                    <PageHeader
-                      eyebrow={tab === "global" ? "Your configuration" : "Project"}
-                      title={tab === "global" ? "Your Claude, globally" : selectedProject!.name}
-                      sub={
-                        tab === "global"
-                          ? "Skills, rules, commands and agents available in every session — your shareable setup."
-                          : selectedProject!.path ??
-                            (selectedProject!.unresolved
-                              ? "Path could not be resolved from transcripts."
-                              : undefined)
-                      }
-                      onBack={tab === "projects" ? () => openProject(null) : undefined}
-                      backLabel="All projects"
-                    />
-                    <Filters
-                      query={query}
-                      onQuery={setQuery}
-                      kind={kind}
-                      onKind={setKind}
-                      counts={counts}
-                    />
-                    {[...sections.entries()].map(([k, list]) => (
-                      <KindSection key={k} kind={k} items={list} />
-                    ))}
-                    {visible.length === 0 && (
-                      <div className="no-results">Nothing matches those filters.</div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </main>
-        )}
+          {items && (tab === "global" || tab === "projects") && (
+            <div className="page">
+              {showingProjectList ? (
+                <>
+                  <PageHeader
+                    eyebrow="By location"
+                    title="Projects"
+                    sub={`${otherProjects.length} projects with their own config and memory.`}
+                  />
+                  <ProjectList projects={otherProjects} onOpen={openProject} />
+                </>
+              ) : (
+                <>
+                  <PageHeader
+                    eyebrow={tab === "global" ? "Your configuration" : "Project"}
+                    title={tab === "global" ? "My Claude" : selectedProject!.name}
+                    sub={
+                      tab === "global"
+                        ? "Everything your Claude has learned and everything you’ve taught it — your shareable setup."
+                        : selectedProject!.path ??
+                          (selectedProject!.unresolved
+                            ? "Path could not be resolved from transcripts."
+                            : undefined)
+                    }
+                    onBack={tab === "projects" ? () => openProject(null) : undefined}
+                    backLabel="All projects"
+                  />
+                  <Filters
+                    query={query}
+                    onQuery={setQuery}
+                    kind={kind}
+                    onKind={setKind}
+                    counts={counts}
+                  />
+                  {[...sections.entries()].map(([k, list]) => (
+                    <KindSection key={k} kind={k} items={list} />
+                  ))}
+                  {visible.length === 0 && (
+                    <div className="no-results">Nothing matches those filters.</div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </main>
       </div>
     </PublishContext.Provider>
   );

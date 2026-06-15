@@ -342,8 +342,88 @@ button.chip:hover:not(.is-active) {
    ============================================================ */
 .app {
   display: flex;
-  flex-direction: column;
   height: 100vh;
+}
+
+/* left rail nav (the mock's shell) */
+.sidenav {
+  width: 212px;
+  flex: none;
+  background: var(--rail);
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 12px 16px;
+}
+.sidenav-brand {
+  font-family: var(--serif);
+  font-size: 23px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  padding: 0 12px;
+  margin-bottom: 24px;
+}
+.sidenav-brand .dot {
+  color: var(--coral);
+}
+.sidenav-items {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-2);
+  text-align: left;
+  transition: background 0.12s, color 0.12s;
+}
+.nav-item:hover {
+  background: rgba(58, 42, 24, 0.05);
+}
+.nav-item.active {
+  background: var(--coral-tint);
+  color: var(--coral-700);
+}
+.nav-icon {
+  display: inline-flex;
+  color: inherit;
+}
+.sidenav-foot {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.sidenav-count {
+  font-size: 11.5px;
+  color: var(--muted);
+  padding: 0 12px;
+  margin-bottom: 8px;
+}
+.sidenav-user {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  transition: background 0.12s;
+}
+.sidenav-user:hover {
+  background: rgba(58, 42, 24, 0.05);
+}
+.sidenav-user-name {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* top bar */
@@ -604,6 +684,76 @@ button.chip:hover:not(.is-active) {
   font-weight: 700;
   font-size: 14px;
   flex: none;
+}
+.avatar.lg {
+  width: 46px;
+  height: 46px;
+  font-size: 17px;
+}
+
+/* People */
+.people-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 22px;
+}
+.person-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 18px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.15s, border-color 0.15s;
+}
+.person-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sh-2);
+  border-color: var(--line-2);
+}
+.person-id {
+  flex: 1;
+  min-width: 0;
+}
+.person-name {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.person-kinds {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+.person-build-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 14px 0 18px;
+}
+.person-build-actions {
+  display: flex;
+  gap: 10px;
+}
+.build-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+}
+.build-row input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--coral);
+  flex: none;
+}
+.build-row .item-name {
+  flex: 1;
 }
 
 /* kind-colored icon tile (Discover cards) */
