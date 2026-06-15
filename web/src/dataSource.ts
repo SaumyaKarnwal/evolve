@@ -27,6 +27,18 @@ export const listPublications = () => call<Publication[]>("list_publications");
 /** Browse everyone's public publications (Discover). */
 export const browsePublic = () => call<PublicItem[]>("browse_public");
 
+/** Outcome of adopting an item into the local ~/.claude. */
+export type InstallOutcome = "Created" | "Overwritten" | "Exists" | "Unsupported";
+
+/** Adopt a public item into the local ~/.claude (writes a file or appends a rule section). */
+export const adoptItem = (item: PublicItem, overwrite: boolean) =>
+  call<InstallOutcome>("adopt_item", {
+    kind: item.kind,
+    name: item.name,
+    body: item.body,
+    overwrite,
+  });
+
 export const publishItem = (item: Item) =>
   call<Publication>("publish_item", {
     kind: item.kind,

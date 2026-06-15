@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Kind, PublicItem } from "../types";
+import { adoptItem } from "../dataSource";
 import { preview } from "../lib/grouping";
 import { KindDot } from "./KindDot";
 import { PageHeader } from "./PageHeader";
@@ -73,8 +74,35 @@ export function DiscoverView({ items, loading, error }: DiscoverViewProps) {
   );
 }
 
+type AdoptStatus = "idle" | "working" | "done" | "exists" | "unsupported" | "error";
+
 function PublicCard({ item }: { item: PublicItem }) {
   const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<AdoptStatus>("idle");
+  const [msg, setMsg] = useState("");
+
+  const adopt = async (overwrite: boolean) => {
+    setStatus("working");
+    try {
+      const outcome = await adoptItem(item, overwrite);
+      setStatus(
+        outcome === "Created" || outcome === "Overwritten"
+          ? "done"
+          : outcome === "Exists"
+            ? "exists"
+            : "unsupported",
+      );
+    } catch (e) {
+      setStatus("error");
+      setMsg(String(e));
+    }
+  };
+
+  const stop = (fn: () => void) => (e: React.MouseEvent) => {
+    e.stopPropagation();
+    fn();
+  };
+
   return (
     <div className={`card item-card${open ? " open" : ""}`}>
       <div className="item-row" onClick={() => setOpen((o) => !o)}>
@@ -83,6 +111,32 @@ function PublicCard({ item }: { item: PublicItem }) {
         {!open && <span className="item-preview">{preview(item.body)}</span>}
         <span className="item-meta">
           <span className="tag">v{item.latest_revision}</span>
+          {status === "idle" && (
+            <button className="pub-btn" onClick={stop(() => adopt(false))}>
+              Adopt
+            </button>
+          )}
+          {status === "working" && <span className="pub-tag busy">adopting…</span>}
+          {status === "done" && <span className="pub-tag published">Adopted ✓</span>}
+          {status === "exists" && (
+            <button
+              className="pub-btn ghost"
+              title="Already in your ~/.claude — replace it"
+              onClick={stop(() => adopt(true))}
+            >
+              Replace?
+            </button>
+          )}
+          {status === "unsupported" && (
+            <span className="pub-tag busy" title="Memory, or a rule that needs a manual merge">
+              can’t adopt
+            </span>
+          )}
+          {status === "error" && (
+            <span className="pub-tag busy" title={msg}>
+              failed
+            </span>
+          )}
           <span className="chevron">▶</span>
         </span>
       </div>

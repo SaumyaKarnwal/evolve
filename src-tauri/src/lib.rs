@@ -195,6 +195,31 @@ async fn browse_public(
     }
 }
 
+fn parse_kind(s: &str) -> Result<evolve::model::Kind, String> {
+    use evolve::model::Kind::*;
+    match s.to_lowercase().as_str() {
+        "skill" => Ok(Skill),
+        "rule" => Ok(Rule),
+        "memory" => Ok(Memory),
+        "command" => Ok(Command),
+        "agent" => Ok(Agent),
+        other => Err(format!("unknown kind: {other}")),
+    }
+}
+
+/// Adopt a published item into the local ~/.claude (a write). Local-only — no auth needed.
+#[tauri::command]
+fn adopt_item(
+    kind: String,
+    name: String,
+    body: String,
+    overwrite: bool,
+) -> Result<evolve::install::InstallOutcome, String> {
+    let root = evolve::default_claude_root().ok_or("can't locate ~/.claude")?;
+    let kind = parse_kind(&kind)?;
+    evolve::install::install(&root, kind, &name, &body, overwrite)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -211,6 +236,7 @@ pub fn run() {
             unpublish_item,
             list_publications,
             browse_public,
+            adopt_item,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

@@ -4,6 +4,7 @@
 
 pub mod claude;
 pub mod hash;
+pub mod install;
 pub mod model;
 pub mod render;
 
