@@ -756,6 +756,90 @@ button.chip:hover:not(.is-active) {
   flex: 1;
 }
 
+/* AdoptBuild modal */
+.modal-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--line);
+}
+.ab-counts {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-right: auto;
+}
+.ab-section {
+  margin-bottom: 18px;
+}
+.ab-kind {
+  margin: 0 0 8px;
+}
+.ab-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.ab-row:last-child {
+  border-bottom: none;
+}
+.ab-row-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.ab-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ab-desc {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seg {
+  display: inline-flex;
+  background: var(--paper-2);
+  border-radius: var(--r-sm);
+  padding: 2px;
+  gap: 2px;
+  flex: none;
+}
+.seg-opt {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: var(--r-xs);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: background 0.12s, color 0.12s;
+}
+.seg-opt:hover:not(.sel) {
+  color: var(--ink-2);
+}
+.seg-opt.sel {
+  background: var(--surface-2);
+  box-shadow: var(--sh-1);
+  color: var(--ink);
+}
+.seg-opt.sel-copy {
+  background: var(--coral);
+  color: #fff;
+}
+.seg-opt.sel-merge {
+  background: var(--sage);
+  color: #fff;
+}
+
 /* kind-colored icon tile (Discover cards) */
 .kind-tile {
   border-radius: 9px;

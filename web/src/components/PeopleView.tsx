@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { type Item, type Kind, type PublicItem } from "../types";
+import { type Item, type Kind, KIND_META, type PublicItem } from "../types";
 import { adoptItem, type InstallOutcome } from "../dataSource";
+import { preview } from "../lib/grouping";
 import { KindDot } from "./KindDot";
 
 const toKind = (k: string): Kind => (k.charAt(0).toUpperCase() + k.slice(1)) as Kind;
@@ -17,30 +18,26 @@ interface Person {
   name: string;
   items: PublicItem[];
 }
-
 interface DestOption {
   label: string;
   path: string | null;
 }
-
 interface PeopleViewProps {
   items: PublicItem[] | null;
   loading: boolean;
   error: string | null;
-  /** ids the signed-in user owns — used to exclude yourself from "people". */
   mineIds: Set<string>;
   destinations: DestOption[];
   localItems: Item[];
 }
 
-export function PeopleView({ items, loading, error, mineIds, destinations }: PeopleViewProps) {
-  const [openName, setOpenName] = useState<string | null>(null);
+export function PeopleView({ items, loading, error, mineIds, destinations, localItems }: PeopleViewProps) {
+  const [open, setOpen] = useState<Person | null>(null);
 
-  // people = authors of public items that aren't yours
   const people = useMemo<Person[]>(() => {
     const by = new Map<string, PublicItem[]>();
     for (const it of items ?? []) {
-      if (mineIds.has(it.id)) continue; // exclude your own publications
+      if (mineIds.has(it.id)) continue;
       const who = it.owner_name ?? "Unknown";
       (by.get(who) ?? by.set(who, []).get(who)!).push(it);
     }
@@ -50,19 +47,13 @@ export function PeopleView({ items, loading, error, mineIds, destinations }: Peo
   }, [items, mineIds]);
 
   if (error) return <div className="error">People: {error}</div>;
-  if (loading && !items) {
+  if (loading && !items)
     return (
       <div className="loading">
         <span className="spinner" /> Finding builders…
       </div>
     );
-  }
   if (!items) return null;
-
-  const open = people.find((p) => p.name === openName) ?? null;
-  if (open) {
-    return <PersonBuild person={open} destinations={destinations} onBack={() => setOpenName(null)} />;
-  }
 
   return (
     <div className="discover">
@@ -78,7 +69,7 @@ export function PeopleView({ items, loading, error, mineIds, destinations }: Peo
       ) : (
         <div className="people-grid">
           {people.map((p) => (
-            <button key={p.name} className="card person-card" onClick={() => setOpenName(p.name)}>
+            <button key={p.name} className="card person-card" onClick={() => setOpen(p)}>
               <span className="avatar lg">{initialsOf(p.name)}</span>
               <div className="person-id">
                 <div className="person-name serif">{p.name}</div>
@@ -95,41 +86,54 @@ export function PeopleView({ items, loading, error, mineIds, destinations }: Peo
           ))}
         </div>
       )}
+
+      {open && (
+        <AdoptBuild person={open} localItems={localItems} destinations={destinations} onClose={() => setOpen(null)} />
+      )}
     </div>
   );
 }
 
-type RowStatus = "" | "working" | "Created" | "Overwritten" | "Exists" | "Unsupported" | "error";
+type Decision = "copy" | "merge" | "skip";
+type RowStatus = "" | "working" | InstallOutcome | "error";
 
-/** A person's build: their published items with select + Adopt selected / Adopt build. */
-function PersonBuild({
+/** "Adopt <name>'s build" — per-item Copy / Merge / Skip, like the mock's AdoptBuild. */
+function AdoptBuild({
   person,
+  localItems,
   destinations,
-  onBack,
+  onClose,
 }: {
   person: Person;
+  localItems: Item[];
   destinations: DestOption[];
-  onBack: () => void;
+  onClose: () => void;
 }) {
+  const have = (it: PublicItem) =>
+    localItems.some((l) => l.kind === toKind(it.kind) && l.name === it.name);
+
   const [destPath, setDestPath] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(person.items.map((i) => i.id)));
+  const [dec, setDec] = useState<Record<string, Decision>>(() =>
+    Object.fromEntries(person.items.map((it) => [it.id, have(it) ? "merge" : "copy"])),
+  );
   const [status, setStatus] = useState<Record<string, RowStatus>>({});
   const [busy, setBusy] = useState(false);
 
-  const toggle = (id: string) =>
-    setSelected((s) => {
-      const next = new Set(s);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
+  const counts = useMemo(() => {
+    const c: Record<Decision, number> = { copy: 0, merge: 0, skip: 0 };
+    for (const v of Object.values(dec)) c[v]++;
+    return c;
+  }, [dec]);
 
-  const adoptThese = async (list: PublicItem[]) => {
+  const apply = async () => {
     setBusy(true);
-    for (const it of list) {
+    for (const it of person.items) {
+      const d = dec[it.id];
+      if (d === "skip") continue;
       setStatus((s) => ({ ...s, [it.id]: "working" }));
       try {
-        const outcome: InstallOutcome = await adoptItem(it, false, destPath);
-        setStatus((s) => ({ ...s, [it.id]: outcome }));
+        const o = await adoptItem(it, d === "merge", destPath); // merge = overwrite
+        setStatus((s) => ({ ...s, [it.id]: o }));
       } catch {
         setStatus((s) => ({ ...s, [it.id]: "error" }));
       }
@@ -137,76 +141,119 @@ function PersonBuild({
     setBusy(false);
   };
 
-  const selectedItems = person.items.filter((i) => selected.has(i.id));
+  const byKind = new Map<Kind, PublicItem[]>();
+  for (const k of Object.keys(KIND_META) as Kind[]) {
+    const inK = person.items.filter((i) => toKind(i.kind) === k);
+    if (inK.length) byKind.set(k, inK);
+  }
 
   return (
-    <div className="discover">
-      <button className="back-link" onClick={onBack}>
-        ‹ All people
-      </button>
-      <div className="person-build-head">
-        <span className="avatar lg">{initialsOf(person.name)}</span>
-        <div className="person-id">
-          <div className="person-name serif" style={{ fontSize: 26 }}>
-            {person.name}
+    <div className="scrim" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 720, maxHeight: "86vh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <span className="avatar">{initialsOf(person.name)}</span>
+          <div className="skill-card-id">
+            <div className="serif" style={{ fontSize: 19, fontWeight: 600 }}>
+              Adopt {person.name}’s build
+            </div>
+            <div className="by-line">{person.items.length} items · choose what to bring in</div>
           </div>
-          <div className="by-line">{person.items.length} published items</div>
+          <label className="dest-picker" style={{ marginLeft: "auto" }}>
+            into
+            <select value={destPath ?? ""} onChange={(e) => setDestPath(e.target.value || null)}>
+              {destinations.map((d) => (
+                <option key={d.label} value={d.path ?? ""}>
+                  {d.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-        <label className="dest-picker" style={{ marginLeft: "auto" }}>
-          Adopt into
-          <select value={destPath ?? ""} onChange={(e) => setDestPath(e.target.value || null)}>
-            {destinations.map((d) => (
-              <option key={d.label} value={d.path ?? ""}>
-                {d.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
 
-      <div className="person-build-actions">
-        <button
-          className="btn btn-primary"
-          disabled={busy}
-          onClick={() => adoptThese(person.items)}
-        >
-          Adopt build
-        </button>
-        <button
-          className="btn btn-secondary"
-          disabled={busy || selectedItems.length === 0}
-          onClick={() => adoptThese(selectedItems)}
-        >
-          Adopt selected ({selectedItems.length})
-        </button>
-      </div>
+        <div className="modal-body">
+          {[...byKind.entries()].map(([k, list]) => (
+            <section className="ab-section" key={k}>
+              <div className="eyebrow ab-kind">{KIND_META[k].plural}</div>
+              {list.map((it) => {
+                const st = status[it.id] ?? "";
+                return (
+                  <div className="ab-row" key={it.id}>
+                    <KindDot kind={k} />
+                    <div className="ab-row-id">
+                      <span className="mono ab-name">{it.name}</span>
+                      <span className="ab-desc">{preview(it.body)}</span>
+                    </div>
+                    {st ? (
+                      <RowStatusBadge st={st} />
+                    ) : (
+                      <Seg
+                        value={dec[it.id]}
+                        onChange={(v) => setDec((d) => ({ ...d, [it.id]: v }))}
+                        canMerge={have(it)}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </section>
+          ))}
+        </div>
 
-      <div className="item-list" style={{ marginTop: 16 }}>
-        {person.items.map((it) => {
-          const st = status[it.id] ?? "";
-          return (
-            <label className="card build-row" key={it.id}>
-              <input
-                type="checkbox"
-                checked={selected.has(it.id)}
-                onChange={() => toggle(it.id)}
-              />
-              <KindDot kind={toKind(it.kind)} />
-              <span className="item-name">{it.name}</span>
-              <span className="item-meta">
-                <span className="tag">v{it.latest_revision}</span>
-                {st === "working" && <span className="pub-tag busy">…</span>}
-                {(st === "Created" || st === "Overwritten") && (
-                  <span className="pub-tag published">Adopted ✓</span>
-                )}
-                {st === "Exists" && <span className="pub-tag busy">already have</span>}
-                {st === "Unsupported" && <span className="pub-tag busy">skipped</span>}
-                {st === "error" && <span className="pub-tag busy">failed</span>}
-              </span>
-            </label>
-          );
-        })}
+        <div className="modal-foot">
+          <span className="ab-counts">
+            {counts.copy} copy · {counts.merge} merge · {counts.skip} skip
+          </span>
+          <button className="btn btn-secondary" onClick={onClose}>
+            {busy ? "Close" : "Cancel"}
+          </button>
+          <button className="btn btn-primary" disabled={busy} onClick={apply}>
+            {busy ? "Adopting…" : `Adopt selected (${counts.copy + counts.merge})`}
+          </button>
+        </div>
       </div>
     </div>
   );
+}
+
+function Seg({
+  value,
+  onChange,
+  canMerge,
+}: {
+  value: Decision;
+  onChange: (v: Decision) => void;
+  canMerge: boolean;
+}) {
+  const opts: { v: Decision; label: string }[] = canMerge
+    ? [
+        { v: "copy", label: "Copy" },
+        { v: "merge", label: "Merge" },
+        { v: "skip", label: "Skip" },
+      ]
+    : [
+        { v: "copy", label: "Copy" },
+        { v: "skip", label: "Skip" },
+      ];
+  return (
+    <div className="seg">
+      {opts.map((o) => (
+        <button
+          key={o.v}
+          className={"seg-opt" + (value === o.v ? ` sel sel-${o.v}` : "")}
+          onClick={() => onChange(o.v)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RowStatusBadge({ st }: { st: RowStatus }) {
+  if (st === "working") return <span className="pub-tag busy">…</span>;
+  if (st === "Created" || st === "Overwritten") return <span className="pub-tag published">Adopted ✓</span>;
+  if (st === "Exists") return <span className="pub-tag busy">already have</span>;
+  if (st === "Unsupported") return <span className="pub-tag busy">skipped</span>;
+  if (st === "error") return <span className="pub-tag busy">failed</span>;
+  return null;
 }
