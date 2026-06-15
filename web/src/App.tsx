@@ -162,6 +162,7 @@ export default function App() {
                     .filter((p) => p.path)
                     .map((p) => ({ label: p.name, path: p.path as string })),
                 ]}
+                localItems={items ?? []}
               />
             ) : (
               <div className="page">

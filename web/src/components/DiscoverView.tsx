@@ -1,9 +1,11 @@
 import { useMemo, useState } from "react";
-import { type Kind, KIND_META, type PublicItem } from "../types";
+import { type Item, type Kind, KIND_META, type PublicItem } from "../types";
 import { adoptItem, type InstallOutcome } from "../dataSource";
 import { preview } from "../lib/grouping";
+import { buildMerge } from "../lib/diff";
 import { KindTile } from "./KindTile";
 import { Filters } from "./Filters";
+import { MergeView } from "./MergeView";
 
 /** Registry kinds are lowercase ("skill"); UI types are capitalized ("Skill"). */
 const toKind = (k: string): Kind => (k.charAt(0).toUpperCase() + k.slice(1)) as Kind;
@@ -21,13 +23,16 @@ interface DiscoverViewProps {
   error: string | null;
   /** Adopt destinations: Global + resolved projects. */
   destinations: DestOption[];
+  /** Local scanned items — used to find "yours" when merging a rule. */
+  localItems: Item[];
 }
 
-export function DiscoverView({ items, loading, error, destinations }: DiscoverViewProps) {
+export function DiscoverView({ items, loading, error, destinations, localItems }: DiscoverViewProps) {
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<Kind | null>(null);
-  const [destPath, setDestPath] = useState<string | null>(null); // null = Global
+  const [destPath, setDestPath] = useState<string | null>(null);
   const [detail, setDetail] = useState<PublicItem | null>(null);
+  const [merging, setMerging] = useState<PublicItem | null>(null);
 
   const counts = useMemo(() => {
     const c: Record<Kind, number> = { Skill: 0, Rule: 0, Memory: 0, Command: 0, Agent: 0 };
@@ -47,6 +52,16 @@ export function DiscoverView({ items, loading, error, destinations }: DiscoverVi
   }, [items, kind, query]);
 
   const adopt = (item: PublicItem, overwrite: boolean) => adoptItem(item, overwrite, destPath);
+
+  // your local version of an incoming rule (for the merge diff)
+  const yoursFor = (item: PublicItem): string =>
+    localItems.find((i) => i.kind === toKind(item.kind) && i.name === item.name)?.body ?? "";
+
+  const applyMergeResult = async (mergedBody: string) => {
+    if (!merging) return;
+    await adoptItem({ ...merging, body: mergedBody }, true, destPath).catch(() => {});
+    setMerging(null);
+  };
 
   if (error) return <div className="error">Discover: {error}</div>;
   if (loading && !items) {
@@ -84,38 +99,57 @@ export function DiscoverView({ items, loading, error, destinations }: DiscoverVi
         </p>
       ) : (
         <>
-          <Filters
-            query={query}
-            onQuery={setQuery}
-            kind={kind}
-            onKind={setKind}
-            counts={counts}
-          />
+          <Filters query={query} onQuery={setQuery} kind={kind} onKind={setKind} counts={counts} />
           <div className="discover-grid">
             {visible.map((it) => (
-              <SkillCard key={it.id} item={it} onOpen={() => setDetail(it)} onAdopt={adopt} />
+              <SkillCard
+                key={it.id}
+                item={it}
+                onOpen={() => setDetail(it)}
+                onAdopt={adopt}
+                onMergeNeeded={() => setMerging(it)}
+              />
             ))}
           </div>
-          {visible.length === 0 && (
-            <div className="no-results">Nothing matches those filters.</div>
-          )}
+          {visible.length === 0 && <div className="no-results">Nothing matches those filters.</div>}
         </>
       )}
 
-      {detail && <SkillDetail item={detail} onClose={() => setDetail(null)} onAdopt={adopt} />}
+      {detail && (
+        <SkillDetail
+          item={detail}
+          onClose={() => setDetail(null)}
+          onAdopt={adopt}
+          onMergeNeeded={() => {
+            setDetail(null);
+            setMerging(detail);
+          }}
+        />
+      )}
+
+      {merging && (
+        <MergeView
+          title={`Merge ${merging.name}`}
+          subtitle={`Fold ${merging.owner_name ?? "their"} version into your rule — pick what to keep.`}
+          merge={buildMerge(yoursFor(merging), merging.body)}
+          onApply={applyMergeResult}
+          onCancel={() => setMerging(null)}
+        />
+      )}
     </div>
   );
 }
 
-/** A published item as a mock-style library card: tile + mono name + author + blurb + adopt footer. */
 function SkillCard({
   item,
   onOpen,
   onAdopt,
+  onMergeNeeded,
 }: {
   item: PublicItem;
   onOpen: () => void;
   onAdopt: (item: PublicItem, overwrite: boolean) => Promise<InstallOutcome>;
+  onMergeNeeded: () => void;
 }) {
   const kind = toKind(item.kind);
   return (
@@ -135,21 +169,22 @@ function SkillCard({
         </div>
       </div>
       <div className="skill-card-foot" onClick={(e) => e.stopPropagation()}>
-        <AdoptControl item={item} onAdopt={onAdopt} />
+        <AdoptControl item={item} onAdopt={onAdopt} onMergeNeeded={onMergeNeeded} />
       </div>
     </button>
   );
 }
 
-/** The full-content modal opened from a card — the mock's SkillDetail. */
 function SkillDetail({
   item,
   onClose,
   onAdopt,
+  onMergeNeeded,
 }: {
   item: PublicItem;
   onClose: () => void;
   onAdopt: (item: PublicItem, overwrite: boolean) => Promise<InstallOutcome>;
+  onMergeNeeded: () => void;
 }) {
   const kind = toKind(item.kind);
   return (
@@ -166,7 +201,7 @@ function SkillDetail({
             </div>
           </div>
           <div style={{ marginLeft: "auto" }}>
-            <AdoptControl item={item} onAdopt={onAdopt} />
+            <AdoptControl item={item} onAdopt={onAdopt} onMergeNeeded={onMergeNeeded} />
           </div>
         </div>
         <div className="modal-body">
@@ -177,28 +212,37 @@ function SkillDetail({
   );
 }
 
-/** Adopt → Adopted ✓ / Replace? / can't adopt — shared by card footer and detail modal. */
+/** Adopt → Adopted ✓ / Replace? / merge (rules) / can't adopt. */
 function AdoptControl({
   item,
   onAdopt,
+  onMergeNeeded,
 }: {
   item: PublicItem;
   onAdopt: (item: PublicItem, overwrite: boolean) => Promise<InstallOutcome>;
+  onMergeNeeded: () => void;
 }) {
   const [status, setStatus] = useState<AdoptStatus>("idle");
   const [msg, setMsg] = useState("");
+  const isRule = toKind(item.kind) === "Rule";
 
   const run = async (overwrite: boolean) => {
     setStatus("working");
     try {
       const outcome = await onAdopt(item, overwrite);
-      setStatus(
-        outcome === "Created" || outcome === "Overwritten"
-          ? "done"
-          : outcome === "Exists"
-            ? "exists"
-            : "unsupported",
-      );
+      if (outcome === "Created" || outcome === "Overwritten") {
+        setStatus("done");
+      } else if (outcome === "Exists") {
+        // a rule that already exists → resolve via the merge view, not a blunt overwrite
+        if (isRule) {
+          setStatus("idle");
+          onMergeNeeded();
+        } else {
+          setStatus("exists");
+        }
+      } else {
+        setStatus("unsupported");
+      }
     } catch (e) {
       setStatus("error");
       setMsg(String(e));
@@ -215,7 +259,7 @@ function AdoptControl({
     );
   if (status === "unsupported")
     return (
-      <span className="pub-tag busy" title="Memory, or a rule that needs a manual merge">
+      <span className="pub-tag busy" title="Memory isn’t adopted">
         can’t adopt
       </span>
     );
