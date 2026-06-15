@@ -30,19 +30,18 @@ export const browsePublic = () => call<PublicItem[]>("browse_public");
 /** Outcome of adopting an item into the local ~/.claude. */
 export type InstallOutcome = "Created" | "Overwritten" | "Exists" | "Unsupported";
 
-/** Adopt a public item into the local config. `projectPath` null = global ~/.claude. */
-export const adoptItem = (
-  item: PublicItem,
+/** Write a kind/name/body into the local config. The low-level primitive behind adopt + merge. */
+export const adoptRaw = (
+  kind: string,
+  name: string,
+  body: string,
   overwrite: boolean,
   projectPath: string | null = null,
-) =>
-  call<InstallOutcome>("adopt_item", {
-    kind: item.kind,
-    name: item.name,
-    body: item.body,
-    overwrite,
-    project: projectPath,
-  });
+) => call<InstallOutcome>("adopt_item", { kind, name, body, overwrite, project: projectPath });
+
+/** Adopt a public item into the local config. `projectPath` null = global ~/.claude. */
+export const adoptItem = (item: PublicItem, overwrite: boolean, projectPath: string | null = null) =>
+  adoptRaw(item.kind, item.name, item.body, overwrite, projectPath);
 
 export const publishItem = (item: Item) =>
   call<Publication>("publish_item", {

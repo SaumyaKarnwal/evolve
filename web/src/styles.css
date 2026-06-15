@@ -775,15 +775,60 @@ button.chip:hover:not(.is-active) {
 .ab-kind {
   margin: 0 0 8px;
 }
+.ab-item {
+  border-bottom: 1px solid var(--line);
+}
+.ab-item:last-child {
+  border-bottom: none;
+}
 .ab-row {
   display: flex;
   align-items: center;
   gap: 11px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--line);
 }
-.ab-row:last-child {
-  border-bottom: none;
+.ab-expand {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+.ab-expand .chevron {
+  font-size: 11px;
+  color: var(--faint);
+  transition: transform 0.16s;
+}
+.ab-expand .chevron.open {
+  transform: rotate(90deg);
+}
+.ab-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+.ab-target {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 0 10px 26px;
+}
+.ab-target select {
+  height: 28px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-xs);
+  background: var(--surface-2);
+  padding: 0 8px;
+  font: inherit;
+  color: var(--ink);
+}
+.ab-content {
+  padding: 8px 0 14px 26px;
+  border-top: 1px dashed var(--line);
 }
 .ab-row-id {
   flex: 1;
