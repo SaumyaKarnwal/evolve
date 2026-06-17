@@ -297,6 +297,20 @@ fn adopt_item(
     evolve::install::install(&dest, kind, &name, &body, overwrite)
 }
 
+/// On launch (release only), ask GitHub for the latest signed release and, if it's newer
+/// than the running version, download + install it and relaunch. Failures are non-fatal:
+/// the caller logs and the app keeps running on the current version.
+#[cfg(desktop)]
+async fn check_for_update(app: tauri::AppHandle) -> tauri_plugin_updater::Result<()> {
+    use tauri_plugin_updater::UpdaterExt;
+    if let Some(update) = app.updater()?.check().await? {
+        log::info!("updating {} -> {}", update.current_version, update.version);
+        update.download_and_install(|_, _| {}, || {}).await?;
+        app.restart(); // diverges — relaunches into the new version
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -326,6 +340,21 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
+            }
+            #[cfg(desktop)]
+            {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+                // Only release builds have an installed bundle to replace; in dev there's
+                // nothing to update, so skip the check and avoid a pointless network call.
+                if !cfg!(debug_assertions) {
+                    let handle = app.handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(e) = check_for_update(handle).await {
+                            log::warn!("update check failed: {e}");
+                        }
+                    });
+                }
             }
             Ok(())
         })
