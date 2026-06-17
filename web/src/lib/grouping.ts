@@ -45,12 +45,46 @@ export function filterItems<T extends { kind: Kind; name: string; body: string }
   );
 }
 
-/** A one-line preview of a body: first non-blank, non-heading, non-frontmatter line. */
+/**
+ * A one-line preview of a body. Prefers a skill/agent's frontmatter `description:`,
+ * otherwise the first real prose line — skipping YAML frontmatter, headings, and bare
+ * `key: value` lines so cards show useful text instead of "name: <slug>".
+ */
 export function preview(body: string): string {
-  const line = body
-    .split("\n")
+  const lines = body.split("\n");
+  let bodyStart = 0;
+
+  if (lines[0]?.trim() === "---") {
+    const close = lines.findIndex((l, i) => i > 0 && l.trim() === "---");
+    if (close > 0) {
+      const desc = lines
+        .slice(1, close)
+        .map((l) => l.trim())
+        .find((l) => /^description\s*:/i.test(l));
+      if (desc) {
+        const value = desc
+          .slice(desc.indexOf(":") + 1)
+          .trim()
+          .replace(/^["']|["']$/g, "");
+        if (value) return clamp(value);
+      }
+      bodyStart = close + 1; // no description — fall through to prose after the block
+    }
+  }
+
+  const line = lines
+    .slice(bodyStart)
     .map((l) => l.trim())
-    .find((l) => l && !l.startsWith("#") && l !== "---");
-  if (!line) return "";
-  return line.length > 140 ? line.slice(0, 139) + "…" : line;
+    .find(
+      (l) =>
+        l &&
+        !l.startsWith("#") &&
+        l !== "---" &&
+        !/^(name|description|tools|model|allowed-tools|color)\s*:/i.test(l),
+    );
+  return line ? clamp(line) : "";
+}
+
+function clamp(s: string): string {
+  return s.length > 140 ? s.slice(0, 139) + "…" : s;
 }

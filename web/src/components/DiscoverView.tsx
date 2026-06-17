@@ -45,7 +45,7 @@ export function DiscoverView({
   onAdopted,
 }: DiscoverViewProps) {
   const [query, setQuery] = useState("");
-  const [kind, setKind] = useState<Kind | null>(null);
+  const [kind, setKind] = useState<Kind | null>("Skill"); // Discover opens on Skills by default
   const [destPath, setDestPath] = useState<string | null>(null);
   const [detail, setDetail] = useState<PublicItem | null>(null);
   const [merging, setMerging] = useState<PublicItem | null>(null);
@@ -190,7 +190,7 @@ function SkillCard({
         <div className="skill-card-head">
           <KindTile kind={kind} />
           <div className="skill-card-id">
-            <div className="skill-card-name mono">{item.name}</div>
+            <div className="skill-card-name">{item.name}</div>
             <div className="by-line">{mine ? "published by you" : `by ${item.owner_name ?? "Unknown"}`}</div>
           </div>
         </div>
@@ -242,7 +242,7 @@ function SkillDetail({
         <div className="modal-head">
           <KindTile kind={kind} size={42} />
           <div className="skill-card-id">
-            <div className="skill-card-name mono" style={{ fontSize: 16 }}>
+            <div className="skill-card-name" style={{ fontSize: 16 }}>
               {item.name}
             </div>
             <div className="by-line">

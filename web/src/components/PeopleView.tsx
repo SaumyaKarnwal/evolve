@@ -125,9 +125,17 @@ function AdoptBuild({
   const sameName = (it: PublicItem) =>
     (mine.get(toKind(it.kind)) ?? []).find((l) => l.name === it.name);
 
+  // Default per item: don't have it → copy; have an identical copy → skip (no-op);
+  // have it but it differs → merge (so overlaps get reconciled, not blindly overwritten).
+  const defaultDecision = (it: PublicItem): Decision => {
+    const existing = sameName(it);
+    if (!existing) return "copy";
+    return existing.body.trim() === it.body.trim() ? "skip" : "merge";
+  };
+
   const [destPath, setDestPath] = useState<string | null>(null);
   const [dec, setDec] = useState<Record<string, Decision>>(() =>
-    Object.fromEntries(person.items.map((it) => [it.id, sameName(it) ? "merge" : "copy"])),
+    Object.fromEntries(person.items.map((it) => [it.id, defaultDecision(it)])),
   );
   const [target, setTarget] = useState<Record<string, string>>(() =>
     Object.fromEntries(
@@ -261,7 +269,7 @@ function AdoptBuild({
                         <span className={"chevron" + (isOpen ? " open" : "")}>▶</span>
                         <KindDot kind={k} />
                         <span className="ab-row-id">
-                          <span className="mono ab-name">{it.name}</span>
+                          <span className="ab-name">{it.name}</span>
                           <span className="ab-desc">{preview(it.body)}</span>
                         </span>
                       </button>

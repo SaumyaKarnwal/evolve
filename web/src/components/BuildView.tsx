@@ -88,7 +88,7 @@ export function BuildView({ user, signedIn, onSignIn, signingIn, publications, o
                 <div className="card item-card" key={p.id}>
                   <div className="item-row">
                     <KindDot kind={kind} />
-                    <span className="item-name mono">{p.name}</span>
+                    <span className="item-name">{p.name}</span>
                     <span className="item-preview" />
                     <span className="item-meta">
                       <span className="tag">v{p.latest_revision}</span>

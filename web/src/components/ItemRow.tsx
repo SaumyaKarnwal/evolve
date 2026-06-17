@@ -36,14 +36,7 @@ export function ItemRow({ item, showProject }: ItemRowProps) {
     <div className={`card item-card${open ? " open" : ""}`}>
       <div className="item-row" onClick={() => setOpen((o) => !o)}>
         <KindDot kind={item.kind} />
-        <span
-          className={
-            "item-name" +
-            (item.kind === "Skill" || item.kind === "Command" || item.kind === "Agent" ? " mono" : "")
-          }
-        >
-          {item.name}
-        </span>
+        <span className="item-name">{item.name}</span>
         {publish?.originOf(item) ? (
           <span className="item-anchor">· pulled from {publish.originOf(item)}</span>
         ) : (

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { applyMerge, buildMerge, type Merge } from "../lib/diff";
+import { applyMerge, type Merge } from "../lib/diff";
 import { aiMerge } from "../dataSource";
 
 interface MergeViewProps {
@@ -11,15 +11,18 @@ interface MergeViewProps {
   onCancel: () => void;
 }
 
-const KIND_TAG: Record<string, string> = {
-  add: "Their addition",
-  local: "Only in yours",
-  modify: "Changed",
+const KIND_TAG: Record<string, { label: string; cls: string }> = {
+  add: { label: "Their addition", cls: "t-add" },
+  local: { label: "Only in yours", cls: "t-local" },
+  modify: { label: "Changed", cls: "t-modify" },
 };
 
 type Choice = "theirs" | "mine";
 
-/** Unified-diff merge: see what differs, pick per change, or let your Claude adapt it intelligently. */
+/**
+ * Merge view (mock design): pick each change on the left, watch the merged file build on the right.
+ * "Adapt with AI" folds both full versions with your own Claude instead of hand-picking.
+ */
 export function MergeView({ title, subtitle, name, merge, onApply, onCancel }: MergeViewProps) {
   const [decisions, setDecisions] = useState<Record<string, Choice>>(() =>
     Object.fromEntries(merge.hunks.map((h) => [h.id, h.kind === "local" ? "mine" : "theirs"])),
@@ -54,10 +57,8 @@ export function MergeView({ title, subtitle, name, merge, onApply, onCancel }: M
     }
   };
 
-  // the merged text that will be applied
-  const result = aiResult ?? applyMerge(merge, decisions);
-  // when AI-merged, show the diff of yours → AI result; else the interactive yours/theirs diff
-  const aiDiff = useMemo(() => (aiResult ? buildMerge(yoursFull, aiResult) : null), [aiResult, yoursFull]);
+  // the merged text — live as you pick, or the AI result once adapted
+  const merged = aiResult ?? applyMerge(merge, decisions);
 
   return (
     <div className="scrim" onClick={onCancel}>
@@ -77,113 +78,97 @@ export function MergeView({ title, subtitle, name, merge, onApply, onCancel }: M
           </button>
         </div>
 
-        <div className="merge-bar">
-          {aiResult ? (
-            <span className="eyebrow" style={{ color: "var(--ocean-700)" }}>
-              ✨ AI-merged · review below
-            </span>
-          ) : (
-            <span className="eyebrow">
-              {noChanges
-                ? "Identical — nothing to merge"
-                : `${merge.hunks.length} change${merge.hunks.length === 1 ? "" : "s"} ·`}
-            </span>
-          )}
-          {!aiResult && !noChanges && (
-            <span className="merge-legend">
-              <span className="legend-rem">− yours</span>
-              <span className="legend-add">+ theirs</span>
-            </span>
-          )}
-          <span className="merge-allbtns">
-            {aiResult ? (
-              <button className="chip" onClick={() => setAiResult(null)}>
-                ↩ Back to manual
-              </button>
-            ) : (
-              <>
-                {!noChanges && (
+        <div className="merge-cols">
+          {/* LEFT — the changes to reconcile */}
+          <div className="merge-left">
+            <div className="merge-left-head">
+              <span className="eyebrow">
+                {aiResult
+                  ? "✨ AI-merged"
+                  : noChanges
+                    ? "Identical — nothing to merge"
+                    : `${merge.hunks.length} change${merge.hunks.length === 1 ? "" : "s"} to reconcile`}
+              </span>
+              <span className="merge-allbtns">
+                {aiResult ? (
+                  <button className="chip" onClick={() => setAiResult(null)}>
+                    ↩ Back to manual
+                  </button>
+                ) : (
                   <>
-                    <button className="chip" onClick={() => all("mine")}>
-                      Keep all mine
-                    </button>
-                    <button className="chip" onClick={() => all("theirs")}>
-                      Take all theirs
+                    {!noChanges && (
+                      <>
+                        <button className="chip" onClick={() => all("mine")}>
+                          Keep all mine
+                        </button>
+                        <button className="chip" onClick={() => all("theirs")}>
+                          Take all theirs
+                        </button>
+                      </>
+                    )}
+                    <button className="chip ai" onClick={runAi} disabled={aiBusy}>
+                      {aiBusy ? "✨ Adapting…" : "✨ Adapt with AI"}
                     </button>
                   </>
                 )}
-                <button className="chip ai" onClick={runAi} disabled={aiBusy}>
-                  {aiBusy ? "✨ Adapting…" : "✨ Adapt with AI"}
-                </button>
-              </>
-            )}
-          </span>
-        </div>
+              </span>
+            </div>
 
-        {aiErr && <div className="error" style={{ margin: "10px 22px" }}>AI merge: {aiErr}</div>}
+            {aiErr && <div className="error" style={{ marginBottom: 12 }}>AI merge: {aiErr}</div>}
 
-        <div className="udiff">
-          {(aiResult ? aiDiff! : merge).context.map((seg, i) => {
-            const m = aiResult ? aiDiff! : merge;
-            if (seg.type === "ctx") {
-              return seg.lines.map((l, j) => (
-                <div className="uline uctx" key={`c${i}-${j}`}>
-                  <span className="ugut"> </span>
-                  {l || " "}
-                </div>
-              ));
-            }
-            const h = m.hunks.find((x) => x.id === seg.id)!;
-            const choice = decisions[h.id];
-            const aiMode = !!aiResult;
-            return (
-              <div className="uhunk" key={`h${i}`}>
-                {!aiMode && (
-                  <div className="uhunk-bar">
-                    <span className="uhunk-tag">{KIND_TAG[h.kind]}</span>
-                    <div className="seg">
-                      <button
-                        className={"seg-opt" + (choice === "mine" ? " sel" : "")}
-                        onClick={() => set(h.id, "mine")}
-                        disabled={h.yours.length === 0}
-                      >
-                        Keep yours
-                      </button>
-                      <button
-                        className={"seg-opt" + (choice === "theirs" ? " sel sel-merge" : "")}
-                        onClick={() => set(h.id, "theirs")}
-                        disabled={h.theirs.length === 0}
-                      >
-                        Take theirs
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {h.yours.map((l, j) => (
-                  <div
-                    className={"uline urem" + (aiMode || choice === "mine" ? " chosen" : " dim")}
-                    key={`y${j}`}
-                  >
-                    <span className="ugut">−</span>
-                    {l || " "}
-                  </div>
-                ))}
-                {h.theirs.map((l, j) => (
-                  <div
-                    className={"uline uadd" + (aiMode || choice === "theirs" ? " chosen" : " dim")}
-                    key={`t${j}`}
-                  >
-                    <span className="ugut">+</span>
-                    {l || " "}
-                  </div>
-                ))}
+            {noChanges && (
+              <div className="md-pane" style={{ color: "var(--muted)" }}>
+                Your version and theirs are identical — there's nothing to reconcile.
               </div>
-            );
-          })}
+            )}
+
+            {merge.hunks.map((h) => {
+              const choice = decisions[h.id];
+              const meta = KIND_TAG[h.kind];
+              return (
+                <div className="hunk-card" key={h.id}>
+                  <div className="hunk-head">
+                    <span className={`tag ${meta.cls}`}>{meta.label}</span>
+                    <span className="hunk-label">{h.label}</span>
+                  </div>
+                  <div className="hunk-opts">
+                    {h.yours.length > 0 && (
+                      <button
+                        className={"hunk-opt" + (!aiResult && choice === "mine" ? " sel" : "")}
+                        onClick={() => set(h.id, "mine")}
+                        disabled={!!aiResult}
+                      >
+                        <div className="hunk-opt-tag">Keep yours</div>
+                        <pre>{h.yours.join("\n")}</pre>
+                      </button>
+                    )}
+                    {h.theirs.length > 0 && (
+                      <button
+                        className={"hunk-opt" + (!aiResult && choice === "theirs" ? " sel" : "")}
+                        onClick={() => set(h.id, "theirs")}
+                        disabled={!!aiResult}
+                      >
+                        <div className="hunk-opt-tag">Take theirs</div>
+                        <pre>{h.theirs.join("\n")}</pre>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* RIGHT — the merged file, live */}
+          <div className="merge-right">
+            <div className="merge-right-head">
+              <span className="eyebrow">{aiResult ? "✨ Merged result" : "Merged result"}</span>
+            </div>
+            <pre className="merge-preview">{merged}</pre>
+          </div>
         </div>
 
         <div className="merge-foot">
-          <span className="ab-counts">
+          <span className="ab-counts" style={{ marginRight: "auto" }}>
             {aiResult
               ? "AI-merged — review and apply"
               : noChanges
@@ -193,7 +178,7 @@ export function MergeView({ title, subtitle, name, merge, onApply, onCancel }: M
           <button className="btn btn-secondary" onClick={onCancel}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={() => onApply(result)}>
+          <button className="btn btn-primary" onClick={() => onApply(merged)}>
             Apply merge
           </button>
         </div>

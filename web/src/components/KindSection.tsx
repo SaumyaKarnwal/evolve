@@ -16,9 +16,11 @@ export function KindSection({ kind, items, showProject }: KindSectionProps) {
   return (
     <section className="kind-section">
       <div className="kind-head">
-        <KindDot kind={kind} />
-        <h2>{meta.plural}</h2>
-        <span className="count">{items.length}</span>
+        <div className="kind-head-title">
+          <KindDot kind={kind} />
+          <h2>{meta.plural}</h2>
+          <span className="count">{items.length}</span>
+        </div>
         <span className="blurb">{meta.blurb}</span>
       </div>
       <div className="item-list">
