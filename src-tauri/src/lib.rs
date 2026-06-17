@@ -8,10 +8,12 @@ use std::sync::Mutex;
 
 use config::SupabaseConfig;
 
-/// App-wide state: the (optional) Supabase config loaded at startup, and the in-memory session.
-/// v1 keeps the session in memory only — you sign in once per launch (persistent keychain login later).
+/// App-wide state: the (optional) Supabase config and the in-memory session.
+/// Config is a Mutex because it's resolved in two phases — cwd-relative at construction (dev),
+/// then the bundled resource path once the Tauri app handle exists (packaged app). v1 keeps the
+/// session in memory only — you sign in once per launch (persistent keychain login later).
 struct AppState {
-    config: Option<SupabaseConfig>,
+    config: Mutex<Option<SupabaseConfig>>,
     session: Mutex<Option<auth::Session>>,
 }
 
@@ -76,6 +78,8 @@ fn is_auth_err(e: &str) -> bool {
 fn require_config(state: &AppState) -> Result<SupabaseConfig, String> {
     state
         .config
+        .lock()
+        .unwrap()
         .clone()
         .ok_or_else(|| "Remote not configured — evolve.config.json is missing".to_string())
 }
@@ -315,7 +319,7 @@ async fn check_for_update(app: tauri::AppHandle) -> tauri_plugin_updater::Result
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState {
-            config: SupabaseConfig::load(),
+            config: Mutex::new(SupabaseConfig::load()),
             session: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
@@ -340,6 +344,18 @@ pub fn run() {
                         .level(log::LevelFilter::Info)
                         .build(),
                 )?;
+            }
+            // In a packaged app the cwd-relative search misses, so fall back to the
+            // bundled evolve.config.json resolved via the Tauri resource dir.
+            {
+                use tauri::Manager;
+                let state = app.state::<AppState>();
+                let mut cfg = state.config.lock().unwrap();
+                if cfg.is_none() {
+                    if let Ok(dir) = app.path().resource_dir() {
+                        *cfg = SupabaseConfig::load_from(&dir.join("evolve.config.json"));
+                    }
+                }
             }
             #[cfg(desktop)]
             {

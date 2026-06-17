@@ -4,7 +4,7 @@
 //! `evolve.config.json`. The anon key is designed to ship in clients (RLS protects the data), but we
 //! still keep it out of the repo. `None` means "remote not configured yet" — the app runs local-only.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
@@ -27,8 +27,14 @@ impl SupabaseConfig {
         }
         candidate_paths()
             .into_iter()
-            .filter_map(|p| std::fs::read_to_string(p).ok())
-            .find_map(|text| serde_json::from_str::<SupabaseConfig>(&text).ok())
+            .find_map(|p| Self::load_from(&p))
+    }
+
+    /// Load config from one specific file (used to read the bundled resource copy in a
+    /// packaged app, where the cwd-relative candidates don't exist). `None` if absent/invalid.
+    pub fn load_from(path: &Path) -> Option<SupabaseConfig> {
+        let text = std::fs::read_to_string(path).ok()?;
+        serde_json::from_str::<SupabaseConfig>(&text).ok()
     }
 
     /// Base for PostgREST table/RPC calls, e.g. `<url>/rest/v1`.
