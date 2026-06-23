@@ -2,8 +2,9 @@
 /web/node_modules
 /web/dist
 /mock.html
-# Supabase URL + anon key live here, never committed (anon key is publishable but kept out of git anyway)
-evolve.config.json
+# evolve.config.json IS committed: it holds only the Supabase URL + publishable anon
+# key, which already ship in every released binary and are guarded by RLS (see
+# docs/learnings/2026-06-23-rls-security-model.md). Never put the service_role key here.
 .env
 .env.local
 Cargo.lock.bak
